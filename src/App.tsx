@@ -11,6 +11,10 @@ import CategoryBedroom from "./pages/CategoryBedroom";
 import CategoryDining from "./pages/CategoryDining";
 import CategoryOffice from "./pages/CategoryOffice";
 import CategoryOutdoor from "./pages/CategoryOutdoor";
+import CustomFurniture from "./pages/CustomFurniture";
+import Bestsellers from "./pages/Bestsellers";
+import Offers from "./pages/Offers";
+import Contact from "./pages/Contact";
 
 const queryClient = new QueryClient();
 
@@ -27,7 +31,10 @@ const App = () => (
           <Route path="/category/dining" element={<CategoryDining />} />
           <Route path="/category/office" element={<CategoryOffice />} />
           <Route path="/category/outdoor" element={<CategoryOutdoor />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/custom-furniture" element={<CustomFurniture />} />
+          <Route path="/bestsellers" element={<Bestsellers />} />
+          <Route path="/offers" element={<Offers />} />
+          <Route path="/contact" element={<Contact />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
