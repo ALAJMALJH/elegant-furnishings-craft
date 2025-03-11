@@ -200,12 +200,12 @@ const membershipBenefits = [
 ];
 
 // Function to calculate days remaining until a given date
-const getDaysRemaining = (endDate) => {
+const getDaysRemaining = (endDate: string | null) => {
   if (!endDate) return null;
   
   const today = new Date();
   const end = new Date(endDate);
-  const diffTime = end - today;
+  const diffTime = Number(end) - Number(today); // Convert to number using Number()
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   
   return diffDays > 0 ? diffDays : 0;
