@@ -1,8 +1,10 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "../components/Layout/Navbar";
 import Footer from "../components/Layout/Footer";
 import { Mail, Phone, MapPin, Clock, MessageSquare, Facebook, Instagram, Twitter, Linkedin } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const contactInfo = {
   address: "Sheikh Zayed Road, Dubai, United Arab Emirates",
@@ -36,7 +38,7 @@ const contactInfo = {
       address: "Al Raha Beach, Abu Dhabi",
       phone: "+971 2 123 4567",
       openingHours: "10:00 AM - 9:00 PM",
-      image: "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e",
+      image: "https://images.unsplash.com/photo-1493663284031-b7e3aefcae85",
       lat: 24.4539,
       lng: 54.3773,
     },
@@ -53,30 +55,130 @@ const contactInfo = {
   ],
 };
 
-const faqs = [
-  {
-    question: "What are your delivery timeframes?",
-    answer: "For in-stock items, delivery typically takes 3-7 business days within the UAE. For custom orders or items that need to be imported, the timeframe is generally 4-8 weeks depending on the product and specifications.",
-  },
-  {
-    question: "Do you offer assembly services?",
-    answer: "Yes, we provide professional assembly services for all our furniture. This service is complimentary for purchases above AED 5,000.",
-  },
-  {
-    question: "What is your return policy?",
-    answer: "We accept returns within 14 days of delivery for items in original condition. Custom furniture cannot be returned unless there is a manufacturing defect.",
-  },
-  {
-    question: "Do you ship internationally?",
-    answer: "Yes, we ship to GCC countries and selected international destinations. International shipping fees and delivery timeframes vary based on the destination.",
-  },
-  {
-    question: "How do I care for my furniture?",
-    answer: "Each piece comes with specific care instructions. Generally, we recommend regular dusting, avoiding direct sunlight, and using appropriate cleaning products based on the material.",
-  },
-];
-
 const Contact = () => {
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    inquiryType: "",
+    message: "",
+    privacy: false,
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [faqs, setFaqs] = useState([]);
+  const [loadingFaqs, setLoadingFaqs] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchFaqs = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("faqs")
+          .select("*")
+          .order("display_order", { ascending: true });
+        
+        if (error) throw error;
+        setFaqs(data || []);
+      } catch (error) {
+        console.error("Error fetching FAQs:", error);
+        setFaqs([
+          {
+            question: "What are your delivery timeframes?",
+            answer: "For in-stock items, delivery typically takes 3-7 business days within the UAE. For custom orders or items that need to be imported, the timeframe is generally 4-8 weeks depending on the product and specifications.",
+          },
+          {
+            question: "Do you offer assembly services?",
+            answer: "Yes, we provide professional assembly services for all our furniture. This service is complimentary for purchases above AED 5,000.",
+          },
+          {
+            question: "What is your return policy?",
+            answer: "We accept returns within 14 days of delivery for items in original condition. Custom furniture cannot be returned unless there is a manufacturing defect.",
+          },
+          {
+            question: "Do you ship internationally?",
+            answer: "Yes, we ship to GCC countries and selected international destinations. International shipping fees and delivery timeframes vary based on the destination.",
+          },
+          {
+            question: "How do I care for my furniture?",
+            answer: "Each piece comes with specific care instructions. Generally, we recommend regular dusting, avoiding direct sunlight, and using appropriate cleaning products based on the material.",
+          },
+        ]);
+      } finally {
+        setLoadingFaqs(false);
+      }
+    };
+
+    fetchFaqs();
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: checked,
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!formData.fullName || !formData.email || !formData.inquiryType || !formData.message || !formData.privacy) {
+      toast({
+        title: "Form Incomplete",
+        description: "Please fill in all required fields and accept the privacy policy",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await supabase.from('contact_submissions').insert({
+        full_name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone || null,
+        inquiry_type: formData.inquiryType,
+        message: formData.message
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Message Sent",
+        description: "Thank you for reaching out! We'll get back to you soon.",
+        variant: "default",
+      });
+
+      // Reset form
+      setFormData({
+        fullName: "",
+        email: "",
+        phone: "",
+        inquiryType: "",
+        message: "",
+        privacy: false,
+      });
+    } catch (error) {
+      console.error("Error submitting contact form:", error);
+      toast({
+        title: "Submission Error",
+        description: "There was a problem sending your message. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <>
       <Navbar />
@@ -227,7 +329,7 @@ const Contact = () => {
                   Fill out the form below and our team will get back to you within 24 hours.
                 </p>
                 
-                <form className="space-y-6">
+                <form className="space-y-6" onSubmit={handleSubmit}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label htmlFor="fullName" className="block text-sm font-medium text-furniture-dark mb-1">
@@ -236,6 +338,9 @@ const Contact = () => {
                       <input
                         type="text"
                         id="fullName"
+                        name="fullName"
+                        value={formData.fullName}
+                        onChange={handleInputChange}
                         className="w-full px-4 py-3 rounded border border-furniture-muted focus:border-furniture-accent focus:outline-none"
                         placeholder="Your name"
                         required
@@ -248,6 +353,9 @@ const Contact = () => {
                       <input
                         type="email"
                         id="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
                         className="w-full px-4 py-3 rounded border border-furniture-muted focus:border-furniture-accent focus:outline-none"
                         placeholder="Your email"
                         required
@@ -263,6 +371,9 @@ const Contact = () => {
                       <input
                         type="tel"
                         id="phone"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
                         className="w-full px-4 py-3 rounded border border-furniture-muted focus:border-furniture-accent focus:outline-none"
                         placeholder="Your phone number"
                       />
@@ -273,10 +384,13 @@ const Contact = () => {
                       </label>
                       <select
                         id="inquiryType"
+                        name="inquiryType"
+                        value={formData.inquiryType}
+                        onChange={handleInputChange}
                         className="w-full px-4 py-3 rounded border border-furniture-muted focus:border-furniture-accent focus:outline-none bg-white"
                         required
                       >
-                        <option value="" disabled selected>Select inquiry type</option>
+                        <option value="" disabled>Select inquiry type</option>
                         <option value="product">Product Inquiry</option>
                         <option value="order">Order Status</option>
                         <option value="returns">Returns & Refunds</option>
@@ -293,6 +407,9 @@ const Contact = () => {
                     </label>
                     <textarea
                       id="message"
+                      name="message"
+                      value={formData.message}
+                      onChange={handleInputChange}
                       rows={5}
                       className="w-full px-4 py-3 rounded border border-furniture-muted focus:border-furniture-accent focus:outline-none"
                       placeholder="How can we help you?"
@@ -304,6 +421,9 @@ const Contact = () => {
                     <input
                       type="checkbox"
                       id="privacy"
+                      name="privacy"
+                      checked={formData.privacy}
+                      onChange={handleCheckboxChange}
                       className="mt-1"
                       required
                     />
@@ -314,9 +434,10 @@ const Contact = () => {
                   
                   <button
                     type="submit"
-                    className="w-full py-3 bg-furniture-dark text-white font-medium rounded hover:bg-furniture-accent hover:text-furniture-dark transition-colors duration-300"
+                    disabled={isSubmitting}
+                    className="w-full py-3 bg-furniture-dark text-white font-medium rounded hover:bg-furniture-accent hover:text-furniture-dark transition-colors duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    Send Message
+                    {isSubmitting ? "Sending..." : "Send Message"}
                   </button>
                 </form>
               </div>
@@ -410,18 +531,22 @@ const Contact = () => {
           </div>
           
           <div className="max-w-4xl mx-auto">
-            <div className="divide-y divide-furniture-muted">
-              {faqs.map((faq, index) => (
-                <div 
-                  key={index} 
-                  className="py-6 animate-fade-up"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <h3 className="text-xl font-medium mb-3">{faq.question}</h3>
-                  <p className="text-furniture-accent2">{faq.answer}</p>
-                </div>
-              ))}
-            </div>
+            {loadingFaqs ? (
+              <div className="py-10 text-center text-furniture-accent2">Loading FAQs...</div>
+            ) : (
+              <div className="divide-y divide-furniture-muted">
+                {faqs.map((faq: any, index) => (
+                  <div 
+                    key={faq.id || index} 
+                    className="py-6 animate-fade-up"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <h3 className="text-xl font-medium mb-3">{faq.question}</h3>
+                    <p className="text-furniture-accent2">{faq.answer}</p>
+                  </div>
+                ))}
+              </div>
+            )}
             
             <div className="mt-12 text-center">
               <p className="mb-4 text-furniture-accent2">

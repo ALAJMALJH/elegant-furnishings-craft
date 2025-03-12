@@ -1,9 +1,10 @@
-
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Calendar, User, ChevronRight } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-export const blogPosts = [
+export const blogPostsFallback = [
   {
     id: 1,
     title: "Top 5 Sofa Designs for Modern Homes",
@@ -37,6 +38,53 @@ export const blogPosts = [
 ];
 
 const BlogSection = () => {
+  const [blogPosts, setBlogPosts] = useState(blogPostsFallback);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchBlogPosts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("blog_posts")
+          .select("*")
+          .order("date", { ascending: false })
+          .limit(3);
+
+        if (error) {
+          console.error("Error fetching blog posts:", error);
+          toast({
+            title: "Error fetching blog posts",
+            description: "Using fallback data instead",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (data && data.length > 0) {
+          setBlogPosts(
+            data.map((post) => ({
+              ...post,
+              id: post.id,
+              image: post.image_url,
+              date: new Date(post.date).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              }),
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Failed to fetch blog posts:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBlogPosts();
+  }, [toast]);
+
   return (
     <section className="py-20 bg-white">
       <div className="container-custom">

@@ -2,6 +2,11 @@
 import { Pencil, Palette, Users, Clock, Send } from 'lucide-react';
 import HowItWorksStep from '../components/CustomFurniture/HowItWorksStep';
 import CustomGalleryItem from '../components/CustomFurniture/CustomGalleryItem';
+import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import Navbar from '../components/Layout/Navbar';
+import Footer from '../components/Layout/Footer';
 
 const customProjects = [
   {
@@ -51,8 +56,78 @@ const steps = [
 ];
 
 const CustomFurniture = () => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    furnitureType: '',
+    projectDescription: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!formData.name || !formData.email || !formData.furnitureType || !formData.projectDescription) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await supabase.from('custom_furniture_requests').insert({
+        name: formData.name,
+        email: formData.email,
+        furniture_type: formData.furnitureType,
+        project_description: formData.projectDescription
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Request Submitted",
+        description: "Your custom furniture request has been submitted successfully. We'll contact you soon!",
+        variant: "default"
+      });
+
+      // Reset form
+      setFormData({
+        name: '',
+        email: '',
+        furnitureType: '',
+        projectDescription: ''
+      });
+    } catch (error) {
+      console.error("Error submitting custom furniture request:", error);
+      toast({
+        title: "Submission Failed",
+        description: "There was an error submitting your request. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen">
+      <Navbar />
+      
       {/* Hero Section */}
       <section className="relative h-[80vh] flex items-center justify-center">
         <div className="absolute inset-0">
@@ -137,12 +212,15 @@ const CustomFurniture = () => {
             <h2 className="text-3xl font-playfair font-semibold text-center mb-8">
               Start Your Custom Order
             </h2>
-            <form className="space-y-6">
+            <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium mb-2">Name</label>
                   <input
                     type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-furniture-accent"
                     required
                   />
@@ -151,6 +229,9 @@ const CustomFurniture = () => {
                   <label className="block text-sm font-medium mb-2">Email</label>
                   <input
                     type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-furniture-accent"
                     required
                   />
@@ -158,7 +239,13 @@ const CustomFurniture = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Furniture Type</label>
-                <select className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-furniture-accent">
+                <select 
+                  name="furnitureType"
+                  value={formData.furnitureType}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-furniture-accent"
+                  required
+                >
                   <option value="">Select a furniture type</option>
                   <option value="sofa">Sofa / Sectional</option>
                   <option value="dining">Dining Table / Chairs</option>
@@ -170,6 +257,9 @@ const CustomFurniture = () => {
               <div>
                 <label className="block text-sm font-medium mb-2">Project Description</label>
                 <textarea
+                  name="projectDescription"
+                  value={formData.projectDescription}
+                  onChange={handleChange}
                   className="w-full px-4 py-2 border rounded-lg h-32 focus:outline-none focus:ring-2 focus:ring-furniture-accent"
                   placeholder="Tell us about your vision..."
                   required
@@ -177,15 +267,24 @@ const CustomFurniture = () => {
               </div>
               <button
                 type="submit"
-                className="w-full bg-furniture-accent text-furniture-dark py-3 rounded-lg font-medium hover:bg-furniture-accent/90 transition-colors flex items-center justify-center"
+                disabled={isSubmitting}
+                className="w-full bg-furniture-accent text-furniture-dark py-3 rounded-lg font-medium hover:bg-furniture-accent/90 transition-colors flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                <Send className="w-5 h-5 mr-2" />
-                Submit Custom Order Request
+                {isSubmitting ? (
+                  "Submitting..."
+                ) : (
+                  <>
+                    <Send className="w-5 h-5 mr-2" />
+                    Submit Custom Order Request
+                  </>
+                )}
               </button>
             </form>
           </div>
         </div>
       </section>
+      
+      <Footer />
     </div>
   );
 };

@@ -1,9 +1,64 @@
-
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Facebook, Instagram, Twitter, Mail, Phone, MapPin, CreditCard, DollarSign, Truck, Shield } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Footer = () => {
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await supabase
+        .from('newsletter_subscribers')
+        .insert({ email });
+
+      if (error) {
+        if (error.code === '23505') {
+          toast({
+            title: "Already Subscribed",
+            description: "This email is already subscribed to our newsletter",
+            variant: "default"
+          });
+        } else {
+          throw error;
+        }
+      } else {
+        toast({
+          title: "Subscription Successful",
+          description: "Thank you for subscribing to our newsletter!",
+          variant: "default"
+        });
+      }
+      
+      setEmail("");
+    } catch (error) {
+      console.error("Error subscribing to newsletter:", error);
+      toast({
+        title: "Subscription Failed",
+        description: "There was an error processing your subscription. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <footer className="bg-furniture-dark text-white pt-16 pb-8">
       <div className="container-custom">
@@ -150,16 +205,23 @@ const Footer = () => {
             <h5 className="text-sm font-medium mb-3">
               Subscribe for exclusive offers
             </h5>
-            <div className="flex">
+            <form onSubmit={handleSubscribe} className="flex">
               <input
                 type="email"
                 placeholder="Your email"
                 className="px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm rounded-l focus:outline-none flex-1"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isSubmitting}
               />
-              <button className="bg-furniture-accent text-furniture-dark px-4 py-2 text-sm font-medium rounded-r">
-                Subscribe
+              <button 
+                type="submit" 
+                className="bg-furniture-accent text-furniture-dark px-4 py-2 text-sm font-medium rounded-r disabled:opacity-70 disabled:cursor-not-allowed"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "..." : "Subscribe"}
               </button>
-            </div>
+            </form>
           </div>
         </div>
 
