@@ -1,79 +1,70 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import ProductCard from "../UI/ProductCard";
+import { supabase } from "@/integrations/supabase/client";
+import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 
-const products = [
-  {
-    id: "p1",
-    name: "Elegant Comfort Sofa",
-    price: 3499,
-    originalPrice: 4299,
-    image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc",
-    category: "Living Room",
-    badge: "Bestseller",
-  },
-  {
-    id: "p2",
-    name: "Modern Oak Dining Table",
-    price: 2899,
-    image: "https://images.unsplash.com/photo-1604578762246-41134e37f9cc",
-    category: "Dining",
-    badge: "Limited",
-  },
-  {
-    id: "p3",
-    name: "Luxe King Size Bed",
-    price: 5299,
-    originalPrice: 5999,
-    image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85",
-    category: "Bedroom",
-    badge: "Trending",
-  },
-  {
-    id: "p4",
-    name: "Executive Office Chair",
-    price: 1299,
-    image: "https://images.unsplash.com/photo-1580480055273-228ff5388ef8",
-    category: "Office",
-    badge: "New",
-  },
-  {
-    id: "p5",
-    name: "Artisan Coffee Table",
-    price: 1899,
-    originalPrice: 2399,
-    image: "https://images.unsplash.com/photo-1601392740426-907c7b028119",
-    category: "Living Room",
-    badge: "Bestseller",
-  },
-  {
-    id: "p6",
-    name: "Premium Outdoor Set",
-    price: 4599,
-    image: "https://images.unsplash.com/photo-1605365070248-299a182a9ca4",
-    category: "Outdoor",
-    badge: "Limited",
-  },
-  {
-    id: "p7",
-    name: "Designer Bookshelf",
-    price: 2499,
-    image: "https://images.unsplash.com/photo-1588329943841-56eb1a3480a5",
-    category: "Living Room",
-    badge: "New",
-  },
-  {
-    id: "p8",
-    name: "Marble Console Table",
-    price: 1799,
-    originalPrice: 2199,
-    image: "https://images.unsplash.com/photo-1600121848594-d8644e57abab",
-    category: "Living Room",
-    badge: "Trending",
-  },
-];
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  discount_price: number | null;
+  image_url: string;
+  category: string;
+  is_bestseller: boolean;
+  is_new_arrival: boolean;
+  is_on_sale: boolean;
+}
 
 const BestsellerSection = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(8);
+
+      if (error) {
+        console.error("Error fetching products:", error);
+        return;
+      }
+
+      setProducts(data || []);
+    } catch (err) {
+      console.error("Failed to fetch products:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  // Set up realtime subscription for products table
+  useRealtimeSubscription(
+    [{ table: 'products', event: '*' }],
+    {
+      products: () => {
+        console.log('Products updated, refreshing data...');
+        fetchProducts();
+      }
+    },
+    false // Disable toast notifications
+  );
+
+  const getBadge = (product: Product) => {
+    if (product.is_bestseller) return "Bestseller";
+    if (product.is_new_arrival) return "New";
+    if (product.is_on_sale) return "Limited";
+    return undefined;
+  };
+
   return (
     <section className="py-20">
       <div className="container-custom">
@@ -82,21 +73,36 @@ const BestsellerSection = () => {
           <p className="section-subtitle">Our most loved pieces, handpicked for you</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-          {products.map((product, index) => (
-            <ProductCard
-              key={product.id}
-              id={product.id}
-              name={product.name}
-              price={product.price}
-              image={product.image}
-              category={product.category}
-              badge={product.badge}
-              originalPrice={product.originalPrice}
-              delay={index * 100}
-            />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+            {[...Array(8)].map((_, index) => (
+              <div 
+                key={index}
+                className="bg-gray-100 animate-pulse h-64 rounded-lg"
+              />
+            ))}
+          </div>
+        ) : products.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+            {products.map((product, index) => (
+              <ProductCard
+                key={product.id}
+                id={product.id}
+                name={product.name}
+                price={product.price}
+                image={product.image_url}
+                category={product.category}
+                badge={getBadge(product)}
+                originalPrice={product.discount_price ? product.price : undefined}
+                delay={index * 100}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No products found. Check back soon!</p>
+          </div>
+        )}
       </div>
     </section>
   );
