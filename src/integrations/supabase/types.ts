@@ -373,6 +373,57 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_transactions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          product_id: string
+          quantity_change: number
+          reference_id: string | null
+          transaction_type: string
+          warehouse_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          product_id: string
+          quantity_change: number
+          reference_id?: string | null
+          transaction_type: string
+          warehouse_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          product_id?: string
+          quantity_change?: number
+          reference_id?: string | null
+          transaction_type?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_transactions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "store_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       newsletter_subscribers: {
         Row: {
           created_at: string
@@ -517,10 +568,38 @@ export type Database = {
         }
         Relationships: []
       }
+      product_collections: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           additional_images: string[] | null
           category: string
+          collections: string[] | null
           created_at: string
           description: string
           discount_price: number | null
@@ -530,15 +609,19 @@ export type Database = {
           is_featured: boolean | null
           is_new_arrival: boolean | null
           is_on_sale: boolean | null
+          low_stock_threshold: number | null
           name: string
           price: number
           stock_quantity: number
           subcategory: string | null
           updated_at: string
+          variants: Json[] | null
+          warehouse_id: string | null
         }
         Insert: {
           additional_images?: string[] | null
           category: string
+          collections?: string[] | null
           created_at?: string
           description: string
           discount_price?: number | null
@@ -548,15 +631,19 @@ export type Database = {
           is_featured?: boolean | null
           is_new_arrival?: boolean | null
           is_on_sale?: boolean | null
+          low_stock_threshold?: number | null
           name: string
           price: number
           stock_quantity?: number
           subcategory?: string | null
           updated_at?: string
+          variants?: Json[] | null
+          warehouse_id?: string | null
         }
         Update: {
           additional_images?: string[] | null
           category?: string
+          collections?: string[] | null
           created_at?: string
           description?: string
           discount_price?: number | null
@@ -566,13 +653,24 @@ export type Database = {
           is_featured?: boolean | null
           is_new_arrival?: boolean | null
           is_on_sale?: boolean | null
+          low_stock_threshold?: number | null
           name?: string
           price?: number
           stock_quantity?: number
           subcategory?: string | null
           updated_at?: string
+          variants?: Json[] | null
+          warehouse_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "store_locations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       store_locations: {
         Row: {

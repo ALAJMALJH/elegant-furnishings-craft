@@ -10,7 +10,12 @@ import {
   X, 
   Image as ImageIcon,
   FileWarning,
-  RefreshCw
+  RefreshCw,
+  Filter,
+  Layers,
+  BarChart3,
+  Table2,
+  Warehouse
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +40,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Dialog,
@@ -55,13 +61,25 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { ProductVariant, ProductCollection } from '@/components/Admin/Discounts/types';
+import { ProductVariantsForm } from '@/components/Admin/Products/ProductVariantsForm';
+import { ProductCollectionsManager } from '@/components/Admin/Products/ProductCollectionsManager';
+import { InventoryManager } from '@/components/Admin/Products/InventoryManager';
+import { ProductCSVImport } from '@/components/Admin/Products/ProductCSVImport';
 
 // Types
 interface Product {
@@ -78,23 +96,54 @@ interface Product {
   is_featured: boolean;
   is_new_arrival: boolean;
   is_on_sale: boolean;
+  variants: ProductVariant[] | null;
+  collections: string[] | null;
+  low_stock_threshold: number;
+  warehouse_id: string | null;
+}
+
+// Form data interface
+interface ProductFormData {
+  name: string;
+  description: string;
+  price: number;
+  discount_price: number | null;
+  category: string;
+  subcategory: string;
+  image_url: string;
+  stock_quantity: number;
+  is_bestseller: boolean;
+  is_featured: boolean;
+  is_new_arrival: boolean;
+  is_on_sale: boolean;
+  low_stock_threshold: number;
+  warehouse_id: string | null;
 }
 
 const Products: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [stockFilter, setStockFilter] = useState('all');
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('general');
+  const [warehouses, setWarehouses] = useState<{id: string, name: string}[]>([]);
+  
+  // Product variants state
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  
+  // Product collections state
+  const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   
   // Product form state
-  const form = useForm({
+  const form = useForm<ProductFormData>({
     defaultValues: {
       name: '',
       description: '',
       price: 0,
-      discount_price: 0,
+      discount_price: null,
       category: '',
       subcategory: '',
       image_url: '/placeholder.svg',
@@ -103,6 +152,8 @@ const Products: React.FC = () => {
       is_featured: false,
       is_new_arrival: false,
       is_on_sale: false,
+      low_stock_threshold: 5,
+      warehouse_id: null,
     },
   });
   
@@ -133,9 +184,28 @@ const Products: React.FC = () => {
     }
   };
 
+  // Fetch warehouses (store locations)
+  const fetchWarehouses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('store_locations')
+        .select('id, name')
+        .order('name', { ascending: true });
+      
+      if (error) {
+        throw error;
+      }
+
+      setWarehouses(data || []);
+    } catch (err) {
+      console.error('Error fetching warehouses:', err);
+    }
+  };
+
   // Initial data load
   useEffect(() => {
     fetchProducts();
+    fetchWarehouses();
   }, []);
 
   // Set up realtime subscription
@@ -171,20 +241,27 @@ const Products: React.FC = () => {
       
     const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
     
-    return matchesSearch && matchesCategory;
+    const matchesStock = stockFilter === 'all' || 
+                         (stockFilter === 'low' && product.stock_quantity <= (product.low_stock_threshold || 5)) ||
+                         (stockFilter === 'out' && product.stock_quantity === 0);
+    
+    return matchesSearch && matchesCategory && matchesStock;
   });
   
   // Helper function to check for low stock
-  const isLowStock = (quantity: number) => quantity <= 5;
+  const isLowStock = (product: Product) => product.stock_quantity <= (product.low_stock_threshold || 5);
   
   // Open edit dialog with product data
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
+    setVariants(product.variants || []);
+    setSelectedCollections(product.collections || []);
+    
     form.reset({
       name: product.name,
       description: product.description,
       price: product.price,
-      discount_price: product.discount_price || 0,
+      discount_price: product.discount_price,
       category: product.category,
       subcategory: product.subcategory || '',
       image_url: product.image_url,
@@ -193,34 +270,43 @@ const Products: React.FC = () => {
       is_featured: product.is_featured,
       is_new_arrival: product.is_new_arrival,
       is_on_sale: product.is_on_sale,
+      low_stock_threshold: product.low_stock_threshold || 5,
+      warehouse_id: product.warehouse_id,
     });
+    
     setIsAddProductOpen(true);
+    setActiveTab('general');
   };
   
   // Handle product form submission
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: ProductFormData) => {
     try {
       setIsLoading(true);
+      
+      const productData = {
+        name: data.name,
+        description: data.description,
+        price: data.price,
+        discount_price: data.discount_price,
+        category: data.category,
+        subcategory: data.subcategory || null,
+        image_url: data.image_url,
+        stock_quantity: data.stock_quantity,
+        is_bestseller: data.is_bestseller,
+        is_featured: data.is_featured,
+        is_new_arrival: data.is_new_arrival,
+        is_on_sale: data.is_on_sale,
+        variants: variants.length > 0 ? variants : null,
+        collections: selectedCollections.length > 0 ? selectedCollections : [],
+        low_stock_threshold: data.low_stock_threshold,
+        warehouse_id: data.warehouse_id,
+      };
       
       if (editingProduct) {
         // Update existing product in Supabase
         const { error } = await supabase
           .from('products')
-          .update({
-            name: data.name,
-            description: data.description,
-            price: data.price,
-            discount_price: data.discount_price || null,
-            category: data.category,
-            subcategory: data.subcategory || null,
-            image_url: data.image_url,
-            stock_quantity: data.stock_quantity,
-            is_bestseller: data.is_bestseller,
-            is_featured: data.is_featured,
-            is_new_arrival: data.is_new_arrival,
-            is_on_sale: data.is_on_sale,
-            updated_at: new Date().toISOString()
-          })
+          .update(productData)
           .eq('id', editingProduct.id);
           
         if (error) throw error;
@@ -233,20 +319,7 @@ const Products: React.FC = () => {
         // Create new product in Supabase
         const { error } = await supabase
           .from('products')
-          .insert({
-            name: data.name,
-            description: data.description,
-            price: data.price,
-            discount_price: data.discount_price || null,
-            category: data.category,
-            subcategory: data.subcategory || null,
-            image_url: data.image_url,
-            stock_quantity: data.stock_quantity,
-            is_bestseller: data.is_bestseller,
-            is_featured: data.is_featured,
-            is_new_arrival: data.is_new_arrival,
-            is_on_sale: data.is_on_sale,
-          });
+          .insert(productData);
           
         if (error) throw error;
           
@@ -259,7 +332,7 @@ const Products: React.FC = () => {
       // Close dialog and reset form
       setIsAddProductOpen(false);
       setEditingProduct(null);
-      form.reset();
+      resetFormState();
       
       // Fetch updated products
       fetchProducts();
@@ -273,6 +346,28 @@ const Products: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  // Reset form state
+  const resetFormState = () => {
+    form.reset({
+      name: '',
+      description: '',
+      price: 0,
+      discount_price: null,
+      category: '',
+      subcategory: '',
+      image_url: '/placeholder.svg',
+      stock_quantity: 1,
+      is_bestseller: false,
+      is_featured: false,
+      is_new_arrival: false,
+      is_on_sale: false,
+      low_stock_threshold: 5,
+      warehouse_id: null,
+    });
+    setVariants([]);
+    setSelectedCollections([]);
   };
   
   // Delete a product
@@ -312,21 +407,16 @@ const Products: React.FC = () => {
   // Open add product dialog
   const handleAddProduct = () => {
     setEditingProduct(null);
-    form.reset({
-      name: '',
-      description: '',
-      price: 0,
-      discount_price: 0,
-      category: '',
-      subcategory: '',
-      image_url: '/placeholder.svg',
-      stock_quantity: 1,
-      is_bestseller: false,
-      is_featured: false,
-      is_new_arrival: false,
-      is_on_sale: false,
-    });
+    resetFormState();
     setIsAddProductOpen(true);
+    setActiveTab('general');
+  };
+  
+  // Handle stock update from inventory manager
+  const handleStockUpdate = (productId: string, newStock: number) => {
+    setProducts(prev => 
+      prev.map(p => p.id === productId ? { ...p, stock_quantity: newStock } : p)
+    );
   };
   
   return (
@@ -335,6 +425,8 @@ const Products: React.FC = () => {
         <h1 className="text-3xl font-bold text-furniture-dark">Products Management</h1>
         <p className="text-muted-foreground mt-2">Manage your product inventory.</p>
       </div>
+      
+      <ProductCSVImport onImportComplete={fetchProducts} />
       
       <div className="flex flex-col sm:flex-row justify-between gap-4">
         <div className="flex flex-col sm:flex-row gap-4 flex-grow">
@@ -348,7 +440,7 @@ const Products: React.FC = () => {
             />
           </div>
           
-          <div className="w-full sm:w-48">
+          <div className="w-full sm:w-40">
             <Select
               value={categoryFilter}
               onValueChange={(value) => setCategoryFilter(value)}
@@ -363,6 +455,23 @@ const Products: React.FC = () => {
                 <SelectItem value="dining">Dining</SelectItem>
                 <SelectItem value="office">Office</SelectItem>
                 <SelectItem value="outdoor">Outdoor</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="w-full sm:w-40">
+            <Select
+              value={stockFilter}
+              onValueChange={(value) => setStockFilter(value)}
+            >
+              <SelectTrigger>
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Stock Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Stock</SelectItem>
+                <SelectItem value="low">Low Stock</SelectItem>
+                <SelectItem value="out">Out of Stock</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -398,6 +507,7 @@ const Products: React.FC = () => {
                   <TableHead>Category</TableHead>
                   <TableHead className="text-center">Stock</TableHead>
                   <TableHead className="text-right">Price</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -422,8 +532,13 @@ const Products: React.FC = () => {
                             )}
                           </div>
                           <div>
-                            <div>{product.name}</div>
+                            <div className="font-medium">{product.name}</div>
                             <div className="text-xs text-muted-foreground line-clamp-1">{product.description}</div>
+                            {product.variants && product.variants.length > 0 && (
+                              <div className="text-xs text-blue-500 mt-1">
+                                {product.variants.length} variants
+                              </div>
+                            )}
                           </div>
                         </div>
                       </TableCell>
@@ -432,14 +547,34 @@ const Products: React.FC = () => {
                         {product.subcategory && (
                           <div className="text-xs text-muted-foreground capitalize">{product.subcategory}</div>
                         )}
+                        {product.collections && product.collections.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {product.collections.slice(0, 2).map((collectionId, i) => (
+                              <Badge key={i} variant="outline" className="text-xs">
+                                {collectionId}
+                              </Badge>
+                            ))}
+                            {product.collections.length > 2 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{product.collections.length - 2}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
-                        <div className={`flex items-center justify-center ${isLowStock(product.stock_quantity) ? 'text-red-500' : ''}`}>
+                        <div className={`flex items-center justify-center ${isLowStock(product) ? 'text-red-500' : ''}`}>
                           {product.stock_quantity}
-                          {isLowStock(product.stock_quantity) && (
+                          {isLowStock(product) && (
                             <FileWarning className="ml-1 h-4 w-4" />
                           )}
                         </div>
+                        {product.warehouse_id && (
+                          <div className="text-xs text-muted-foreground flex items-center justify-center mt-1">
+                            <Warehouse className="h-3 w-3 mr-1" />
+                            {warehouses.find(w => w.id === product.warehouse_id)?.name || 'Unknown'}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         {product.discount_price ? (
@@ -450,6 +585,27 @@ const Products: React.FC = () => {
                         ) : (
                           <span>AED {product.price.toFixed(2)}</span>
                         )}
+                        {product.variants && product.variants.length > 0 && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Multiple price points
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {product.is_bestseller && (
+                            <Badge variant="secondary" className="text-xs">Bestseller</Badge>
+                          )}
+                          {product.is_featured && (
+                            <Badge variant="secondary" className="text-xs">Featured</Badge>
+                          )}
+                          {product.is_new_arrival && (
+                            <Badge variant="secondary" className="text-xs">New</Badge>
+                          )}
+                          {product.is_on_sale && (
+                            <Badge variant="secondary" className="text-xs text-red-500">Sale</Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
@@ -471,7 +627,7 @@ const Products: React.FC = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       <p className="text-muted-foreground">No products found. Add some products to get started.</p>
                     </TableCell>
                   </TableRow>
@@ -484,7 +640,7 @@ const Products: React.FC = () => {
       
       {/* Add/Edit Product Dialog */}
       <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
             <DialogDescription>
@@ -492,272 +648,384 @@ const Products: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Product Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Modern Wooden Sofa" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Enter product description" 
-                            rows={4}
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="price"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Price (AED)</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              min="0" 
-                              step="0.01" 
-                              placeholder="0.00"
-                              {...field}
-                              onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="discount_price"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Discount Price (AED)</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              min="0" 
-                              step="0.01" 
-                              placeholder="0.00"
-                              {...field}
-                              onChange={(e) => {
-                                const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                                field.onChange(value);
-                              }}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Leave 0 for no discount
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category</FormLabel>
-                          <Select 
-                            value={field.value} 
-                            onValueChange={field.onChange}
-                          >
+          <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid grid-cols-4">
+              <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="variants">Variants</TabsTrigger>
+              <TabsTrigger value="collections">Collections</TabsTrigger>
+              <TabsTrigger value="inventory">Inventory</TabsTrigger>
+            </TabsList>
+            
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <TabsContent value="general" className="mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Product Name</FormLabel>
                             <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
+                              <Input placeholder="Modern Wooden Sofa" {...field} />
                             </FormControl>
-                            <SelectContent>
-                              <SelectItem value="living-room">Living Room</SelectItem>
-                              <SelectItem value="bedroom">Bedroom</SelectItem>
-                              <SelectItem value="dining">Dining</SelectItem>
-                              <SelectItem value="office">Office</SelectItem>
-                              <SelectItem value="outdoor">Outdoor</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                placeholder="Enter product description" 
+                                rows={4}
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="price"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Price (AED)</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="0" 
+                                  step="0.01" 
+                                  placeholder="0.00"
+                                  {...field}
+                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="discount_price"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Discount Price (AED)</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="0" 
+                                  step="0.01" 
+                                  placeholder="0.00"
+                                  value={field.value === null ? '' : field.value}
+                                  onChange={(e) => {
+                                    const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                                    field.onChange(value);
+                                  }}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Leave empty for no discount
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="category"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Category</FormLabel>
+                              <Select 
+                                value={field.value} 
+                                onValueChange={field.onChange}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select category" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="living-room">Living Room</SelectItem>
+                                  <SelectItem value="bedroom">Bedroom</SelectItem>
+                                  <SelectItem value="dining">Dining</SelectItem>
+                                  <SelectItem value="office">Office</SelectItem>
+                                  <SelectItem value="outdoor">Outdoor</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="subcategory"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Subcategory</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g. sofas, tables" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
                     
-                    <FormField
-                      control={form.control}
-                      name="subcategory"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Subcategory</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g. sofas, tables" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="image_url"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Image URL</FormLabel>
+                            <FormControl>
+                              <Input placeholder="https://example.com/image.jpg" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              Enter a URL for the product image
+                            </FormDescription>
+                            {field.value && (
+                              <div className="mt-2 h-32 bg-muted rounded overflow-hidden">
+                                <img 
+                                  src={field.value} 
+                                  alt="Preview" 
+                                  className="w-full h-full object-contain"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = '/placeholder.svg';
+                                  }}
+                                />
+                              </div>
+                            )}
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <div className="space-y-2 pt-2">
+                        <Label className="text-base">Product Status</Label>
+                        <div className="grid grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="is_bestseller"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  Bestseller
+                                </FormLabel>
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="is_featured"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  Featured
+                                </FormLabel>
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="is_new_arrival"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  New Arrival
+                                </FormLabel>
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="is_on_sale"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  On Sale
+                                </FormLabel>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </TabsContent>
                 
-                <div className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="image_url"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Image URL</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://example.com/image.jpg" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          Enter a URL for the product image
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                <TabsContent value="variants" className="mt-4">
+                  <ProductVariantsForm 
+                    variants={variants} 
+                    onVariantsChange={setVariants} 
                   />
-                  
-                  <FormField
-                    control={form.control}
-                    name="stock_quantity"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Stock Quantity</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            min="0" 
-                            step="1" 
-                            placeholder="0"
-                            {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                </TabsContent>
+                
+                <TabsContent value="collections" className="mt-4">
+                  <ProductCollectionsManager
+                    selectedCollections={selectedCollections}
+                    onCollectionsChange={setSelectedCollections}
                   />
-                  
-                  <div className="space-y-2 pt-2">
-                    <Label className="text-base">Product Status</Label>
-                    <div className="grid grid-cols-2 gap-4">
+                </TabsContent>
+                
+                <TabsContent value="inventory" className="mt-4">
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField
                         control={form.control}
-                        name="is_bestseller"
+                        name="stock_quantity"
                         render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                          <FormItem>
+                            <FormLabel>Stock Quantity</FormLabel>
                             <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
+                              <Input 
+                                type="number" 
+                                min="0" 
+                                step="1" 
+                                placeholder="0"
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                               />
                             </FormControl>
-                            <FormLabel className="font-normal">
-                              Bestseller
-                            </FormLabel>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
                       
                       <FormField
                         control={form.control}
-                        name="is_featured"
+                        name="low_stock_threshold"
                         render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                          <FormItem>
+                            <FormLabel>Low Stock Threshold</FormLabel>
                             <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
+                              <Input 
+                                type="number" 
+                                min="0" 
+                                step="1" 
+                                placeholder="5"
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 5)}
                               />
                             </FormControl>
-                            <FormLabel className="font-normal">
-                              Featured
-                            </FormLabel>
+                            <FormDescription>
+                              Set the threshold for low stock alerts
+                            </FormDescription>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
                       
                       <FormField
                         control={form.control}
-                        name="is_new_arrival"
+                        name="warehouse_id"
                         render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              New Arrival
-                            </FormLabel>
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control}
-                        name="is_on_sale"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              On Sale
-                            </FormLabel>
+                          <FormItem>
+                            <FormLabel>Warehouse / Store Location</FormLabel>
+                            <Select
+                              value={field.value || ''}
+                              onValueChange={(value) => field.onChange(value === '' ? null : value)}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select location" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="">Not assigned</SelectItem>
+                                {warehouses.map((warehouse) => (
+                                  <SelectItem key={warehouse.id} value={warehouse.id}>
+                                    {warehouse.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              Assign this product to a physical location
+                            </FormDescription>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
                     </div>
+
+                    {editingProduct && (
+                      <InventoryManager
+                        productId={editingProduct.id}
+                        productName={editingProduct.name}
+                        currentStock={editingProduct.stock_quantity}
+                        lowStockThreshold={editingProduct.low_stock_threshold || 5}
+                        onStockUpdate={(newStock) => {
+                          form.setValue('stock_quantity', newStock);
+                          handleStockUpdate(editingProduct.id, newStock);
+                        }}
+                      />
+                    )}
                   </div>
-                </div>
-              </div>
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsAddProductOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      {editingProduct ? 'Saving...' : 'Adding...'}
-                    </>
-                  ) : (
-                    editingProduct ? 'Save Changes' : 'Add Product'
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+                </TabsContent>
+                
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setIsAddProductOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        {editingProduct ? 'Saving...' : 'Adding...'}
+                      </>
+                    ) : (
+                      editingProduct ? 'Save Changes' : 'Add Product'
+                    )}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </div>

@@ -34,3 +34,49 @@ export interface AbandonedCartNotification {
   status: 'pending' | 'sent' | 'failed';
   sent_at: string | null;
 }
+
+// Product variant and inventory types
+export interface ProductVariant {
+  id: string;
+  name: string;
+  attributes: {
+    [key: string]: string; // e.g. { "color": "red", "size": "large" }
+  };
+  price: number;
+  discount_price: number | null;
+  sku: string;
+  stock_quantity: number;
+  image_url?: string;
+}
+
+export interface ProductCollection {
+  id: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InventoryTransaction {
+  id: string;
+  product_id: string;
+  warehouse_id: string;
+  quantity_change: number;
+  transaction_type: 'restock' | 'sale' | 'return' | 'adjustment';
+  reference_id: string | null;
+  notes: string | null;
+  created_at: string;
+  created_by: string | null;
+}
+
+export interface Warehouse {
+  id: string;
+  name: string;
+  address: string;
+  image_url: string;
+  latitude: number;
+  longitude: number;
+  phone: string;
+  opening_hours: string;
+}
