@@ -1,9 +1,9 @@
-
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import type { Json } from '@/integrations/supabase/types';
 
 interface CartItem {
   id: string;
@@ -14,7 +14,7 @@ interface CartItem {
 }
 
 interface CartState {
-  id: string; // Unique cart ID
+  id: string;
   items: CartItem[];
   total: number;
   lastUpdated: number;
@@ -116,7 +116,6 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
       return newState;
       
     case 'SYNC_CART':
-      // Only sync if the incoming cart is newer
       if (action.payload.lastUpdated > state.lastUpdated) {
         return action.payload;
       }
@@ -129,12 +128,9 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
-  
-  // Get user session
   const [userId, setUserId] = useState<string | null>(null);
   
   useEffect(() => {
-    // Check for user authentication
     const checkAuth = async () => {
       const { data } = await supabase.auth.getSession();
       if (data.session?.user) {
@@ -144,7 +140,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     checkAuth();
     
-    // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (session?.user) {
@@ -160,32 +155,24 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
   
-  // Initialize cart state with a unique ID
   const [state, dispatch] = useReducer(cartReducer, initialCartState);
   
-  // Initialize cart on component mount
   useEffect(() => {
     const initializeCart = async () => {
       setIsLoading(true);
       
       try {
-        // Try to get cart from localStorage
         const localCart = localStorage.getItem('cart');
         let cartState: CartState | null = null;
         
         if (localCart) {
           const parsedCart = JSON.parse(localCart) as CartState;
-          
-          // Ensure cart has an ID
           if (!parsedCart.id) {
             parsedCart.id = uuidv4();
           }
-          
-          // Initialize with local cart data
           cartState = parsedCart;
         } 
         
-        // If no local cart, create a new one
         if (!cartState) {
           cartState = {
             ...initialCartState,
@@ -193,7 +180,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
         
-        // If user is logged in, try to fetch cart from database and merge if needed
         if (userId) {
           const { data, error } = await supabase
             .from('carts')
@@ -206,38 +192,33 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           
           if (data && data.cart_data) {
-            const dbCartData = data.cart_data as CartState;
+            const dbCartData = data.cart_data as unknown as CartState;
             
-            // Use the more recently updated cart (or database cart if timestamps match)
             if (!cartState.lastUpdated || dbCartData.lastUpdated >= cartState.lastUpdated) {
               cartState = dbCartData;
             } else {
-              // Local cart is newer, update the database
               await supabase
                 .from('carts')
                 .upsert({
                   user_id: userId,
                   cart_id: cartState.id,
-                  cart_data: cartState
+                  cart_data: cartState as unknown as Json
                 });
             }
           } else {
-            // No database cart, save the local cart to database
             await supabase
               .from('carts')
               .upsert({
                 user_id: userId,
                 cart_id: cartState.id,
-                cart_data: cartState
+                cart_data: cartState as unknown as Json
               });
           }
         }
         
-        // Initialize the cart
         dispatch({ type: 'INIT_CART', payload: cartState });
       } catch (error) {
         console.error('Error initializing cart:', error);
-        // Fallback to a new cart if something goes wrong
         const newCart = {
           ...initialCartState,
           id: uuidv4()
@@ -251,7 +232,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeCart();
   }, [userId]);
   
-  // Subscribe to realtime cart updates for multi-device sync
   useRealtimeSubscription(
     userId ? [
       { table: 'carts', event: 'UPDATE', filter: 'user_id=eq.?', filterValues: [userId] }
@@ -267,13 +247,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     false
   );
   
-  // Save cart to localStorage and database when it changes
   useEffect(() => {
     if (!isLoading && state.id) {
-      // Save to localStorage for persistent carts (guest users and logged in)
       localStorage.setItem('cart', JSON.stringify(state));
       
-      // Save to database if user is logged in for multi-device sync
       if (userId) {
         const saveCart = async () => {
           try {
@@ -282,7 +259,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .upsert({
                 user_id: userId,
                 cart_id: state.id,
-                cart_data: state
+                cart_data: state as unknown as Json
               });
           } catch (error) {
             console.error('Error saving cart to database:', error);
@@ -319,7 +296,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   const generateWhatsAppLink = () => {
-    const baseUrl = 'https://wa.me/971559143341'; // WhatsApp business number
+    const baseUrl = 'https://wa.me/971559143341';
     const cartUrl = `${window.location.origin}/cart`;
     const items = state.items.map(item => 
       `• ${item.name} (${item.quantity}x) - AED ${(item.price * item.quantity).toFixed(2)}`
