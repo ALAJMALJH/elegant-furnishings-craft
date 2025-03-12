@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Search, ShoppingCart, Heart, Menu, X } from "lucide-react";
@@ -26,7 +25,7 @@ const Navbar = () => {
     { name: "Dining", path: "/category/dining" },
     { name: "Office", path: "/category/office" },
     { name: "Outdoor", path: "/category/outdoor" },
-    { name: "Custom", path: "/category/custom" },
+    { name: "Custom", path: "/custom-furniture" },
   ];
 
   return (
@@ -52,6 +51,9 @@ const Navbar = () => {
             <Link to="/" className="nav-link font-medium">
               Home
             </Link>
+            <Link to="/about-us" className="nav-link font-medium">
+              About Us
+            </Link>
             <div className="relative group">
               <button className="nav-link font-medium flex items-center">
                 Shop by Category
@@ -70,6 +72,9 @@ const Navbar = () => {
                 </div>
               </div>
             </div>
+            <Link to="/shop" className="nav-link font-medium">
+              Shop All
+            </Link>
             <Link to="/custom-furniture" className="nav-link font-medium">
               Custom Furniture
             </Link>
@@ -78,6 +83,9 @@ const Navbar = () => {
             </Link>
             <Link to="/offers" className="nav-link font-medium">
               Offers
+            </Link>
+            <Link to="/blog" className="nav-link font-medium">
+              Blog & Inspiration
             </Link>
             <Link to="/contact" className="nav-link font-medium">
               Contact Us
@@ -140,6 +148,14 @@ const Navbar = () => {
               Home
             </Link>
             
+            <Link
+              to="/about-us"
+              className="py-2 px-4 hover:bg-furniture-muted rounded"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              About Us
+            </Link>
+            
             <div className="py-2 px-4">
               <p className="font-medium mb-2">Shop by Category</p>
               <div className="grid grid-cols-2 gap-2 pl-2">
@@ -157,12 +173,21 @@ const Navbar = () => {
             </div>
             
             <Link
+              to="/shop"
+              className="py-2 px-4 hover:bg-furniture-muted rounded"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Shop All
+            </Link>
+            
+            <Link
               to="/custom-furniture"
               className="py-2 px-4 hover:bg-furniture-muted rounded"
               onClick={() => setMobileMenuOpen(false)}
             >
               Custom Furniture
             </Link>
+            
             <Link
               to="/bestsellers"
               className="py-2 px-4 hover:bg-furniture-muted rounded"
@@ -170,6 +195,7 @@ const Navbar = () => {
             >
               Bestsellers
             </Link>
+            
             <Link
               to="/offers"
               className="py-2 px-4 hover:bg-furniture-muted rounded"
@@ -177,6 +203,15 @@ const Navbar = () => {
             >
               Offers
             </Link>
+            
+            <Link
+              to="/blog"
+              className="py-2 px-4 hover:bg-furniture-muted rounded"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Blog & Inspiration
+            </Link>
+            
             <Link
               to="/contact"
               className="py-2 px-4 hover:bg-furniture-muted rounded"

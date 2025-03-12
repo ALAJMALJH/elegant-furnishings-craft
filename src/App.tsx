@@ -15,6 +15,10 @@ import CustomFurniture from "./pages/CustomFurniture";
 import Bestsellers from "./pages/Bestsellers";
 import Offers from "./pages/Offers";
 import Contact from "./pages/Contact";
+import AboutUs from "./pages/AboutUs";
+import ShopAll from "./pages/ShopAll";
+import BlogInspiration from "./pages/BlogInspiration";
+import BlogPost from "./pages/BlogPost";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +39,10 @@ const App = () => (
           <Route path="/bestsellers" element={<Bestsellers />} />
           <Route path="/offers" element={<Offers />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/about-us" element={<AboutUs />} />
+          <Route path="/shop" element={<ShopAll />} />
+          <Route path="/blog" element={<BlogInspiration />} />
+          <Route path="/blog/:id" element={<BlogPost />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
