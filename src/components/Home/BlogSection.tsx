@@ -3,7 +3,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Calendar, User, ChevronRight } from "lucide-react";
 
-const blogPosts = [
+export const blogPosts = [
   {
     id: 1,
     title: "Top 5 Sofa Designs for Modern Homes",
