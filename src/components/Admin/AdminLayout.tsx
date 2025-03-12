@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import AdminSidebar from './AdminSidebar';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
