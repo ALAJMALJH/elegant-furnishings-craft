@@ -1,8 +1,7 @@
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import CategoryCard from "../UI/CategoryCard";
-import { supabase } from "@/integrations/supabase/client";
-import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { useProductSync } from "@/contexts/ProductSyncContext";
 
 // Default categories in case there are no products
 const defaultCategories = [
@@ -59,105 +58,50 @@ interface Category {
 }
 
 const CategorySection = () => {
-  const [categories, setCategories] = useState<Category[]>(defaultCategories);
-  const [isLoading, setIsLoading] = useState(true);
+  const { categories, isLoading } = useProductSync();
 
-  const fetchCategories = async () => {
-    setIsLoading(true);
-    try {
-      // Get unique categories from products
-      const { data: productCategories, error } = await supabase
-        .from('products')
-        .select('category, image_url')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error("Error fetching product categories:", error);
-        return;
-      }
-
-      if (!productCategories || productCategories.length === 0) {
-        // Use default categories if no products found
-        setCategories(defaultCategories);
-        return;
-      }
-
-      // Create unique category map
-      const uniqueCategories = new Map<string, { image: string }>();
-      
-      productCategories.forEach(product => {
-        if (product.category && !uniqueCategories.has(product.category)) {
-          uniqueCategories.set(product.category, { 
-            image: product.image_url
-          });
-        }
-      });
-
-      // Generate category description based on category name
-      const formattedCategories = Array.from(uniqueCategories).map(([categoryName, data]) => {
-        // Format the category title (e.g., "living-room" -> "Living Room")
-        const title = categoryName
-          .split('-')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' ');
-        
-        // Format the description based on the category
-        let description = "";
-        if (categoryName === "living-room") {
-          description = "Elegant sofas, coffee tables, and accent pieces";
-        } else if (categoryName === "bedroom") {
-          description = "Luxurious beds, wardrobes, and nightstands";
-        } else if (categoryName === "dining") {
-          description = "Stunning dining tables, chairs, and buffets";
-        } else if (categoryName === "office") {
-          description = "Productive desks, chairs, and storage solutions";
-        } else if (categoryName === "outdoor") {
-          description = "Durable and stylish patio and garden furniture";
-        } else {
-          description = `Beautiful ${title.toLowerCase()} furniture for your home`;
-        }
-
-        return {
-          id: categoryName,
-          title,
-          image: data.image || `https://images.unsplash.com/photo-1555041469-a586c61ea9bc`,
-          description,
-          link: `/category/${categoryName}`,
-        };
-      });
-
-      // Always include custom furniture
-      const customFurnitureCategory = defaultCategories.find(cat => cat.id === "custom");
-      
-      if (customFurnitureCategory && !formattedCategories.some(cat => cat.id === "custom")) {
-        formattedCategories.push(customFurnitureCategory);
-      }
-
-      setCategories(formattedCategories);
-    } catch (err) {
-      console.error("Failed to fetch categories:", err);
-      // Fall back to default categories
-      setCategories(defaultCategories);
-    } finally {
-      setIsLoading(false);
+  // Generate categories from ProductSyncContext data
+  const generatedCategories: Category[] = Array.from(categories.entries()).map(([categoryName, data]) => {
+    // Format the category title (e.g., "living-room" -> "Living Room")
+    const title = categoryName
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    
+    // Format the description based on the category
+    let description = "";
+    if (categoryName === "living-room") {
+      description = "Elegant sofas, coffee tables, and accent pieces";
+    } else if (categoryName === "bedroom") {
+      description = "Luxurious beds, wardrobes, and nightstands";
+    } else if (categoryName === "dining") {
+      description = "Stunning dining tables, chairs, and buffets";
+    } else if (categoryName === "office") {
+      description = "Productive desks, chairs, and storage solutions";
+    } else if (categoryName === "outdoor") {
+      description = "Durable and stylish patio and garden furniture";
+    } else {
+      description = `Beautiful ${title.toLowerCase()} furniture for your home`;
     }
-  };
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+    return {
+      id: categoryName,
+      title,
+      image: data.image || `https://images.unsplash.com/photo-1555041469-a586c61ea9bc`,
+      description,
+      link: `/category/${categoryName}`,
+    };
+  });
 
-  // Set up realtime subscription for products table
-  useRealtimeSubscription(
-    [{ table: 'products', event: '*' }],
-    {
-      products: () => {
-        console.log('Products updated, refreshing categories...');
-        fetchCategories();
-      }
-    },
-    false // Disable toast notifications
-  );
+  // Always include custom furniture
+  const customFurnitureCategory = defaultCategories.find(cat => cat.id === "custom");
+  
+  if (customFurnitureCategory && !generatedCategories.some(cat => cat.id === "custom")) {
+    generatedCategories.push(customFurnitureCategory);
+  }
+
+  // Use generated categories or fall back to defaults if none are available
+  const displayCategories = generatedCategories.length > 0 ? generatedCategories : defaultCategories;
 
   return (
     <section className="py-20 bg-furniture-light">
@@ -178,7 +122,7 @@ const CategorySection = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {categories.map((category, index) => (
+            {displayCategories.map((category, index) => (
               <CategoryCard
                 key={category.id}
                 title={category.title}

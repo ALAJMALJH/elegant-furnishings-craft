@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Package, 
   Search, 
@@ -9,7 +9,8 @@ import {
   Save, 
   X, 
   Image as ImageIcon,
-  FileWarning
+  FileWarning,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,6 +61,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 
 // Types
 interface Product {
@@ -78,91 +80,13 @@ interface Product {
   is_on_sale: boolean;
 }
 
-// Mock data
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: '1',
-    name: 'Modern Wooden Sofa',
-    description: 'Elegant modern wooden sofa with comfortable cushions.',
-    price: 899.99,
-    discount_price: null,
-    category: 'living-room',
-    subcategory: 'sofas',
-    image_url: '/placeholder.svg',
-    stock_quantity: 15,
-    is_bestseller: true,
-    is_featured: true,
-    is_new_arrival: false,
-    is_on_sale: false
-  },
-  {
-    id: '2',
-    name: 'Elegant Dining Table',
-    description: 'Beautiful dining table made from solid oak wood.',
-    price: 749.99,
-    discount_price: 699.99,
-    category: 'dining',
-    subcategory: 'tables',
-    image_url: '/placeholder.svg',
-    stock_quantity: 8,
-    is_bestseller: false,
-    is_featured: true,
-    is_new_arrival: true,
-    is_on_sale: true
-  },
-  {
-    id: '3',
-    name: 'Minimalist Office Chair',
-    description: 'Comfortable and stylish office chair with ergonomic design.',
-    price: 349.99,
-    discount_price: null,
-    category: 'office',
-    subcategory: 'chairs',
-    image_url: '/placeholder.svg',
-    stock_quantity: 3,
-    is_bestseller: false,
-    is_featured: false,
-    is_new_arrival: true,
-    is_on_sale: false
-  },
-  {
-    id: '4',
-    name: 'Luxurious Bed Frame',
-    description: 'King-sized bed frame with premium upholstery.',
-    price: 1299.99,
-    discount_price: 999.99,
-    category: 'bedroom',
-    subcategory: 'beds',
-    image_url: '/placeholder.svg',
-    stock_quantity: 5,
-    is_bestseller: true,
-    is_featured: true,
-    is_new_arrival: false,
-    is_on_sale: true
-  },
-  {
-    id: '5',
-    name: 'Outdoor Patio Set',
-    description: 'Weather-resistant patio furniture set for your garden.',
-    price: 1599.99,
-    discount_price: null,
-    category: 'outdoor',
-    subcategory: 'sets',
-    image_url: '/placeholder.svg',
-    stock_quantity: 2,
-    is_bestseller: false,
-    is_featured: true,
-    is_new_arrival: true,
-    is_on_sale: false
-  },
-];
-
 const Products: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Product form state
   const form = useForm({
@@ -181,6 +105,63 @@ const Products: React.FC = () => {
       is_on_sale: false,
     },
   });
+  
+  // Fetch products from Supabase
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        throw error;
+      }
+
+      console.log('Fetched products:', data);
+      setProducts(data || []);
+    } catch (err) {
+      console.error('Error fetching products:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to load products. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initial data load
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  // Set up realtime subscription
+  useRealtimeSubscription(
+    [{ table: 'products', event: '*' }],
+    {
+      products: (payload) => {
+        console.log('Product updated, refreshing:', payload);
+        
+        // Instead of doing a full refetch, we can update the local state based on the payload
+        if (payload.eventType === 'INSERT') {
+          setProducts(prev => [payload.new as Product, ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          setProducts(prev => 
+            prev.map(p => p.id === payload.new.id ? (payload.new as Product) : p)
+          );
+        } else if (payload.eventType === 'DELETE') {
+          setProducts(prev => 
+            prev.filter(p => p.id !== payload.old.id)
+          );
+        }
+      }
+    },
+    false, // Disable toast notifications
+    'admin-products-channel' // Custom channel name
+  );
   
   // Filter products based on search and category
   const filteredProducts = products.filter(product => {
@@ -219,64 +200,55 @@ const Products: React.FC = () => {
   // Handle product form submission
   const onSubmit = async (data: any) => {
     try {
+      setIsLoading(true);
+      
       if (editingProduct) {
-        // Update existing product
-        const updatedProducts = products.map(p => 
-          p.id === editingProduct.id ? { ...p, ...data } : p
-        );
-        setProducts(updatedProducts);
-        
-        // In a real app, you would update the product in Supabase
-        // await supabase
-        //   .from('products')
-        //   .update({
-        //     name: data.name,
-        //     description: data.description,
-        //     price: data.price,
-        //     discount_price: data.discount_price || null,
-        //     category: data.category,
-        //     subcategory: data.subcategory || null,
-        //     image_url: data.image_url,
-        //     stock_quantity: data.stock_quantity,
-        //     is_bestseller: data.is_bestseller,
-        //     is_featured: data.is_featured,
-        //     is_new_arrival: data.is_new_arrival,
-        //     is_on_sale: data.is_on_sale,
-        //   })
-        //   .eq('id', editingProduct.id);
+        // Update existing product in Supabase
+        const { error } = await supabase
+          .from('products')
+          .update({
+            name: data.name,
+            description: data.description,
+            price: data.price,
+            discount_price: data.discount_price || null,
+            category: data.category,
+            subcategory: data.subcategory || null,
+            image_url: data.image_url,
+            stock_quantity: data.stock_quantity,
+            is_bestseller: data.is_bestseller,
+            is_featured: data.is_featured,
+            is_new_arrival: data.is_new_arrival,
+            is_on_sale: data.is_on_sale,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingProduct.id);
+          
+        if (error) throw error;
           
         toast({
           title: "Product updated",
           description: `${data.name} has been updated successfully.`,
         });
       } else {
-        // Create new product
-        const newProduct = {
-          id: Date.now().toString(), // In a real app, this would be a UUID
-          ...data,
-          discount_price: data.discount_price || null,
-          subcategory: data.subcategory || null,
-        };
-        
-        setProducts([...products, newProduct]);
-        
-        // In a real app, you would insert the product into Supabase
-        // await supabase
-        //   .from('products')
-        //   .insert({
-        //     name: data.name,
-        //     description: data.description,
-        //     price: data.price,
-        //     discount_price: data.discount_price || null,
-        //     category: data.category,
-        //     subcategory: data.subcategory || null,
-        //     image_url: data.image_url,
-        //     stock_quantity: data.stock_quantity,
-        //     is_bestseller: data.is_bestseller,
-        //     is_featured: data.is_featured,
-        //     is_new_arrival: data.is_new_arrival,
-        //     is_on_sale: data.is_on_sale,
-        //   });
+        // Create new product in Supabase
+        const { error } = await supabase
+          .from('products')
+          .insert({
+            name: data.name,
+            description: data.description,
+            price: data.price,
+            discount_price: data.discount_price || null,
+            category: data.category,
+            subcategory: data.subcategory || null,
+            image_url: data.image_url,
+            stock_quantity: data.stock_quantity,
+            is_bestseller: data.is_bestseller,
+            is_featured: data.is_featured,
+            is_new_arrival: data.is_new_arrival,
+            is_on_sale: data.is_on_sale,
+          });
+          
+        if (error) throw error;
           
         toast({
           title: "Product added",
@@ -288,31 +260,53 @@ const Products: React.FC = () => {
       setIsAddProductOpen(false);
       setEditingProduct(null);
       form.reset();
-    } catch (error) {
+      
+      // Fetch updated products
+      fetchProducts();
+    } catch (error: any) {
       console.error('Error saving product:', error);
       toast({
         title: "Error",
-        description: "There was an error saving the product. Please try again.",
+        description: error.message || "There was an error saving the product. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
   
   // Delete a product
-  const handleDeleteProduct = (productId: string) => {
-    const productToDelete = products.find(p => p.id === productId);
-    if (!productToDelete) return;
-    
-    // Remove from state
-    setProducts(products.filter(p => p.id !== productId));
-    
-    // In a real app, you would delete from Supabase
-    // await supabase.from('products').delete().eq('id', productId);
-    
-    toast({
-      title: "Product deleted",
-      description: `${productToDelete.name} has been removed from the catalog.`,
-    });
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      setIsLoading(true);
+      const productToDelete = products.find(p => p.id === productId);
+      if (!productToDelete) return;
+      
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Product deleted",
+        description: `${productToDelete.name} has been removed from the catalog.`,
+      });
+      
+      // Update local state
+      setProducts(products.filter(p => p.id !== productId));
+    } catch (error: any) {
+      console.error('Error deleting product:', error);
+      toast({
+        title: "Error",
+        description: error.message || "There was an error deleting the product. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   // Open add product dialog
@@ -374,9 +368,14 @@ const Products: React.FC = () => {
           </div>
         </div>
         
-        <Button onClick={handleAddProduct}>
-          <Plus className="mr-2 h-4 w-4" /> Add Product
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={fetchProducts} variant="outline" size="icon" title="Refresh Products">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button onClick={handleAddProduct}>
+            <Plus className="mr-2 h-4 w-4" /> Add Product
+          </Button>
+        </div>
       </div>
       
       <Card>
@@ -387,82 +386,99 @@ const Products: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-center">Stock</TableHead>
-                <TableHead className="text-right">Price</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden">
-                        {product.image_url ? (
-                          <img 
-                            src={product.image_url} 
-                            alt={product.name} 
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div>
-                        <div>{product.name}</div>
-                        <div className="text-xs text-muted-foreground line-clamp-1">{product.description}</div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="capitalize">{product.category.replace('-', ' ')}</div>
-                    {product.subcategory && (
-                      <div className="text-xs text-muted-foreground capitalize">{product.subcategory}</div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <div className={`flex items-center justify-center ${isLowStock(product.stock_quantity) ? 'text-red-500' : ''}`}>
-                      {product.stock_quantity}
-                      {isLowStock(product.stock_quantity) && (
-                        <FileWarning className="ml-1 h-4 w-4" />
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {product.discount_price ? (
-                      <div>
-                        <span className="text-red-500 font-medium">${product.discount_price.toFixed(2)}</span>
-                        <span className="text-muted-foreground text-xs line-through ml-1">${product.price.toFixed(2)}</span>
-                      </div>
-                    ) : (
-                      <span>${product.price.toFixed(2)}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditProduct(product)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteProduct(product.id)}
-                    >
-                      <Trash className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+          {isLoading ? (
+            <div className="py-8 flex justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-furniture-accent"></div>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-center">Stock</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredProducts.length > 0 ? (
+                  filteredProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden">
+                            {product.image_url ? (
+                              <img 
+                                src={product.image_url} 
+                                alt={product.name} 
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = '/placeholder.svg';
+                                }}
+                              />
+                            ) : (
+                              <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div>
+                            <div>{product.name}</div>
+                            <div className="text-xs text-muted-foreground line-clamp-1">{product.description}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="capitalize">{product.category.replace('-', ' ')}</div>
+                        {product.subcategory && (
+                          <div className="text-xs text-muted-foreground capitalize">{product.subcategory}</div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className={`flex items-center justify-center ${isLowStock(product.stock_quantity) ? 'text-red-500' : ''}`}>
+                          {product.stock_quantity}
+                          {isLowStock(product.stock_quantity) && (
+                            <FileWarning className="ml-1 h-4 w-4" />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {product.discount_price ? (
+                          <div>
+                            <span className="text-red-500 font-medium">AED {product.discount_price.toFixed(2)}</span>
+                            <span className="text-muted-foreground text-xs line-through ml-1">AED {product.price.toFixed(2)}</span>
+                          </div>
+                        ) : (
+                          <span>AED {product.price.toFixed(2)}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditProduct(product)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteProduct(product.id)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8">
+                      <p className="text-muted-foreground">No products found. Add some products to get started.</p>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
       
@@ -518,7 +534,7 @@ const Products: React.FC = () => {
                       name="price"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Price ($)</FormLabel>
+                          <FormLabel>Price (AED)</FormLabel>
                           <FormControl>
                             <Input 
                               type="number" 
@@ -539,7 +555,7 @@ const Products: React.FC = () => {
                       name="discount_price"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Discount Price ($)</FormLabel>
+                          <FormLabel>Discount Price (AED)</FormLabel>
                           <FormControl>
                             <Input 
                               type="number" 
@@ -726,8 +742,18 @@ const Products: React.FC = () => {
               </div>
               
               <DialogFooter>
-                <Button type="submit">
-                  {editingProduct ? 'Save Changes' : 'Add Product'}
+                <Button type="button" variant="outline" onClick={() => setIsAddProductOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      {editingProduct ? 'Saving...' : 'Adding...'}
+                    </>
+                  ) : (
+                    editingProduct ? 'Save Changes' : 'Add Product'
+                  )}
                 </Button>
               </DialogFooter>
             </form>

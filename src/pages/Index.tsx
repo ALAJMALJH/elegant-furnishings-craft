@@ -11,6 +11,7 @@ import OffersSection from "../components/Home/OffersSection";
 import BlogSection from "../components/Home/BlogSection";
 import InstagramSection from "../components/Home/InstagramSection";
 import { ChevronUp } from "lucide-react";
+import { ProductSyncProvider } from "@/contexts/ProductSyncContext";
 
 const Index = () => {
   const [showScrollTop, setShowScrollTop] = React.useState(false);
@@ -36,33 +37,35 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      
-      <main>
-        <HeroSection />
-        <CategorySection />
-        <BestsellerSection />
-        <CustomFurnitureSection />
-        <ReviewSection />
-        <OffersSection />
-        <BlogSection />
-        <InstagramSection />
-      </main>
-      
-      <Footer />
-      
-      {/* Scroll to top button */}
-      <button
-        onClick={handleScrollToTop}
-        className={`fixed right-6 bottom-6 w-12 h-12 rounded-full bg-furniture-accent flex items-center justify-center shadow-lg transition-all duration-300 z-40 ${
-          showScrollTop ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"
-        }`}
-        aria-label="Scroll to top"
-      >
-        <ChevronUp size={24} className="text-furniture-dark" />
-      </button>
-    </div>
+    <ProductSyncProvider>
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        
+        <main>
+          <HeroSection />
+          <CategorySection />
+          <BestsellerSection />
+          <CustomFurnitureSection />
+          <ReviewSection />
+          <OffersSection />
+          <BlogSection />
+          <InstagramSection />
+        </main>
+        
+        <Footer />
+        
+        {/* Scroll to top button */}
+        <button
+          onClick={handleScrollToTop}
+          className={`fixed right-6 bottom-6 w-12 h-12 rounded-full bg-furniture-accent flex items-center justify-center shadow-lg transition-all duration-300 z-40 ${
+            showScrollTop ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"
+          }`}
+          aria-label="Scroll to top"
+        >
+          <ChevronUp size={24} className="text-furniture-dark" />
+        </button>
+      </div>
+    </ProductSyncProvider>
   );
 };
 

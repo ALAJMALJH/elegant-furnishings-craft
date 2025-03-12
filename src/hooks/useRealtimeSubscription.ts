@@ -19,17 +19,19 @@ type RealtimeCallback = (payload: any) => void;
  * @param configs Array of subscription configurations
  * @param callbacks Object with callback functions for each table
  * @param enableToasts Whether to show toast notifications for updates
+ * @param channelName Optional custom channel name
  */
 export const useRealtimeSubscription = (
   configs: SubscriptionConfig[],
   callbacks: Record<string, RealtimeCallback>,
-  enableToasts = true
+  enableToasts = true,
+  channelName?: string
 ) => {
   useEffect(() => {
     // Skip if no configs are provided
     if (!configs.length) return;
 
-    const channel = supabase.channel('admin-realtime');
+    const channel = supabase.channel(channelName || 'realtime-subscription');
 
     // Add subscription for each config
     configs.forEach((config) => {
@@ -53,6 +55,8 @@ export const useRealtimeSubscription = (
         'postgres_changes',
         subscriptionOptions,
         (payload) => {
+          console.log(`[Realtime] ${table} ${payload.eventType}:`, payload);
+          
           // Call the callback for this table if it exists
           if (callbacks[table]) {
             callbacks[table](payload);
@@ -83,6 +87,8 @@ export const useRealtimeSubscription = (
     channel.subscribe((status) => {
       if (status !== 'SUBSCRIBED') {
         console.error('Failed to subscribe to real-time updates:', status);
+      } else {
+        console.log('Successfully subscribed to real-time updates for', configs.map(c => c.table).join(', '));
       }
     });
 
@@ -90,5 +96,5 @@ export const useRealtimeSubscription = (
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [configs, callbacks, enableToasts]);
+  }, [configs, callbacks, enableToasts, channelName]);
 };
