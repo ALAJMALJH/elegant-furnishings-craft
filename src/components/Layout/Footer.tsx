@@ -1,8 +1,10 @@
+
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Facebook, Instagram, Twitter, Mail, Phone, MapPin, CreditCard, DollarSign, Truck, Shield } from "lucide-react";
+import { Facebook, Instagram, Twitter, Mail, Phone, MapPin, CreditCard, DollarSign, Truck, Shield, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 const Footer = () => {
   const [email, setEmail] = useState("");
@@ -277,6 +279,21 @@ const Footer = () => {
                 Sitemap
               </Link>
             </div>
+          </div>
+          
+          {/* Admin Access Button */}
+          <div className="flex justify-center mt-6">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="text-xs border-white/20 text-furniture-muted hover:text-white hover:border-white transition-colors"
+              asChild
+            >
+              <Link to="/auth">
+                <Lock size={14} className="mr-1" />
+                Only Authorized Person
+              </Link>
+            </Button>
           </div>
         </div>
       </div>
