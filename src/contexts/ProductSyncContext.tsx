@@ -62,14 +62,15 @@ export const ProductSyncProvider: React.FC<ProductSyncProviderProps> = ({ childr
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Derived states for different product categories
+  // Derived states
   const featuredProducts = products.filter(p => p.is_featured);
   const bestsellerProducts = products.filter(p => p.is_bestseller);
   const newArrivals = products.filter(p => p.is_new_arrival);
   const onSaleProducts = products.filter(p => p.is_on_sale && p.discount_price);
 
-  // Organize products by categories
+  // Organize products by categories with better error handling
   const categories = new Map<string, { count: number; image: string }>();
   products.forEach(product => {
     if (!product.category) return;
@@ -88,9 +89,10 @@ export const ProductSyncProvider: React.FC<ProductSyncProviderProps> = ({ childr
     }
   });
 
-  // Fetch all products with cache busting
+  // Enhanced fetchProducts with better error handling and logging
   const fetchProducts = async () => {
     setIsLoading(true);
+    setError(null);
     console.log('[ProductSync] Fetching products...');
     
     try {
@@ -105,24 +107,26 @@ export const ProductSyncProvider: React.FC<ProductSyncProviderProps> = ({ childr
 
       console.log('[ProductSync] Fetched products:', data?.length);
       setProducts(data || []);
-    } catch (err) {
+      setInitialized(true);
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to load products';
       console.error('[ProductSync] Error fetching products:', err);
+      setError(errorMessage);
       toast({
-        title: 'Error',
-        description: 'Failed to load products. Please try again.',
-        variant: 'destructive',
+        title: "Error loading products",
+        description: errorMessage,
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
-      setInitialized(true);
     }
   };
 
-  // Set up real-time subscriptions with error handling
+  // Set up enhanced real-time subscriptions with improved error handling
   useEffect(() => {
     fetchProducts(); // Initial fetch
 
-    const channel = supabase.channel('product-updates')
+    const channel = supabase.channel('product-sync')
       .on(
         'postgres_changes',
         {
@@ -131,17 +135,29 @@ export const ProductSyncProvider: React.FC<ProductSyncProviderProps> = ({ childr
           table: 'products',
         },
         async (payload) => {
-          console.log('[ProductSync] Real-time update received:', payload);
+          console.log('[ProductSync] Real-time update received:', payload.eventType, payload);
           
-          // Always fetch fresh data after any change
-          await fetchProducts();
-          
-          // Show toast notification
-          toast({
-            title: 'Products Updated',
-            description: 'Product catalog has been updated.',
-            duration: 3000,
-          });
+          try {
+            // Update local state based on the event type
+            if (payload.eventType === 'INSERT') {
+              setProducts(prev => [payload.new as Product, ...prev]);
+              toast({ title: "New product added", duration: 3000 });
+            } 
+            else if (payload.eventType === 'UPDATE') {
+              setProducts(prev => prev.map(p => 
+                p.id === payload.new.id ? (payload.new as Product) : p
+              ));
+              toast({ title: "Product updated", duration: 3000 });
+            }
+            else if (payload.eventType === 'DELETE') {
+              setProducts(prev => prev.filter(p => p.id !== payload.old.id));
+              toast({ title: "Product removed", duration: 3000 });
+            }
+          } catch (err) {
+            console.error('[ProductSync] Error processing real-time update:', err);
+            // Fetch all products as a fallback
+            await fetchProducts();
+          }
         }
       )
       .subscribe((status) => {
@@ -149,31 +165,34 @@ export const ProductSyncProvider: React.FC<ProductSyncProviderProps> = ({ childr
         
         if (status === 'SUBSCRIBED') {
           console.log('[ProductSync] Successfully subscribed to real-time updates');
+          toast({
+            title: "Real-time sync enabled",
+            description: "Product updates will appear automatically.",
+          });
         } else if (status === 'CHANNEL_ERROR') {
           console.error('[ProductSync] Failed to subscribe to real-time updates');
           toast({
-            title: 'Connection Error',
-            description: 'Unable to receive real-time updates. Please refresh the page.',
-            variant: 'destructive',
+            title: "Sync Error",
+            description: "Unable to receive real-time updates. Please refresh.",
+            variant: "destructive",
           });
         }
       });
 
-    // Cleanup
+    // Enhanced cleanup
     return () => {
       console.log('[ProductSync] Cleaning up subscription');
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channel).then(() => {
+        console.log('[ProductSync] Channel cleanup completed');
+      }).catch(err => {
+        console.error('[ProductSync] Error during channel cleanup:', err);
+      });
     };
   }, []);
 
   // Helper functions
-  const getProductById = (id: string) => {
-    return products.find(p => p.id === id);
-  };
-  
-  const getProductsByCategory = (category: string) => {
-    return products.filter(p => p.category === category);
-  };
+  const getProductById = (id: string) => products.find(p => p.id === id);
+  const getProductsByCategory = (category: string) => products.filter(p => p.category === category);
 
   const value = {
     products,
