@@ -27,9 +27,17 @@ export const supabase = createClient<Database>(
 
 // Maps frontend role to database role
 export const mapRoleToDatabase = (frontendRole: string): string => {
+  // First check in our roleMap
   const roleMap: Record<string, string> = {
-    'super_admin': 'admin',
+    'ceo': 'admin',
+    'cto': 'admin',
+    'admin': 'admin',
     'manager': 'moderator',
+    'hr': 'moderator',
+    'marketing': 'moderator',
+    'finance': 'moderator',
+    'operations': 'moderator',
+    'sales': 'user',
     'support': 'user'
   };
   return roleMap[frontendRole] || 'user';
@@ -60,13 +68,71 @@ export const checkUserDatabaseRole = async (databaseRole: string): Promise<boole
 // Function to check if current user can manage products
 export const canManageProducts = async (): Promise<boolean> => {
   try {
-    // Check if user has admin or moderator role (which can manage products)
-    const isAdmin = await checkUserDatabaseRole('admin');
-    const isModerator = await checkUserDatabaseRole('moderator');
+    // Get user from localStorage for client-side check
+    const userString = localStorage.getItem('user');
+    const user = userString ? JSON.parse(userString) : null;
     
-    return isAdmin || isModerator;
+    if (!user) return false;
+    
+    // Check permissions based on role
+    const roles = ['ceo', 'cto', 'admin', 'manager', 'marketing', 'operations'];
+    return roles.includes(user.role);
   } catch (error) {
     console.error('Error checking product management permissions:', error);
+    return false;
+  }
+};
+
+// Function to check if current user can manage users
+export const canManageUsers = async (): Promise<boolean> => {
+  try {
+    // Get user from localStorage for client-side check
+    const userString = localStorage.getItem('user');
+    const user = userString ? JSON.parse(userString) : null;
+    
+    if (!user) return false;
+    
+    // Check permissions based on role
+    const roles = ['ceo', 'admin', 'hr'];
+    return roles.includes(user.role);
+  } catch (error) {
+    console.error('Error checking user management permissions:', error);
+    return false;
+  }
+};
+
+// Function to check if current user can access financial data
+export const canAccessFinancials = async (): Promise<boolean> => {
+  try {
+    // Get user from localStorage for client-side check
+    const userString = localStorage.getItem('user');
+    const user = userString ? JSON.parse(userString) : null;
+    
+    if (!user) return false;
+    
+    // Check permissions based on role
+    const roles = ['ceo', 'finance'];
+    return roles.includes(user.role);
+  } catch (error) {
+    console.error('Error checking financial access permissions:', error);
+    return false;
+  }
+};
+
+// Function to check if current user can manage orders
+export const canManageOrders = async (): Promise<boolean> => {
+  try {
+    // Get user from localStorage for client-side check
+    const userString = localStorage.getItem('user');
+    const user = userString ? JSON.parse(userString) : null;
+    
+    if (!user) return false;
+    
+    // Check permissions based on role
+    const roles = ['ceo', 'manager', 'sales', 'operations'];
+    return roles.includes(user.role);
+  } catch (error) {
+    console.error('Error checking order management permissions:', error);
     return false;
   }
 };

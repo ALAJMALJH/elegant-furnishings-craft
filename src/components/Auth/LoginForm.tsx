@@ -15,18 +15,26 @@ import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Lock, UserCircle2 } from 'lucide-react';
+import { getRoleFromEmail } from '@/components/Auth/ProtectedRoute';
 
-// Demo admin accounts with roles
+// Demo admin accounts for each role
 const DEMO_ADMINS = [
-  { username: 'admin', password: 'admin123', role: 'super_admin', displayName: 'Super Admin' },
-  { username: 'manager', password: 'manager123', role: 'manager', displayName: 'Store Manager' },
-  { username: 'support', password: 'support123', role: 'support', displayName: 'Support Team' },
+  { email: 'ceo@ajmalfurniture.com', password: 'ceo123', role: 'ceo', displayName: 'CEO' },
+  { email: 'cto@ajmalfurniture.com', password: 'cto123', role: 'cto', displayName: 'CTO' },
+  { email: 'manager@ajmalfurniture.com', password: 'manager123', role: 'manager', displayName: 'Store Manager' },
+  { email: 'sales@ajmalfurniture.com', password: 'sales123', role: 'sales', displayName: 'Sales Team' },
+  { email: 'support@ajmalfurniture.com', password: 'support123', role: 'support', displayName: 'Support Team' },
+  { email: 'hr@ajmalfurniture.com', password: 'hr123', role: 'hr', displayName: 'HR Manager' },
+  { email: 'marketing@ajmalfurniture.com', password: 'marketing123', role: 'marketing', displayName: 'Marketing Team' },
+  { email: 'finance@ajmalfurniture.com', password: 'finance123', role: 'finance', displayName: 'Finance Department' },
+  { email: 'operations@ajmalfurniture.com', password: 'operations123', role: 'operations', displayName: 'Operations Manager' },
+  { email: 'admin@ajmalfurniture.com', password: 'admin123', role: 'admin', displayName: 'System Admin' },
 ];
 
 const LoginForm = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: '',
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -47,11 +55,11 @@ const LoginForm = () => {
       // In a real app, you would authenticate with Supabase Auth
       // For demo, we'll use local check against demo accounts
       const admin = DEMO_ADMINS.find(
-        admin => admin.username === formData.username && admin.password === formData.password
+        admin => admin.email === formData.email && admin.password === formData.password
       );
       
       if (!admin) {
-        throw new Error('Invalid username or password');
+        throw new Error('Invalid email or password');
       }
       
       // Log successful login attempt (in a real app, this would be tracked in a secure way)
@@ -61,7 +69,7 @@ const LoginForm = () => {
           .insert([
             { 
               page_path: '/auth', 
-              visitor_id: `admin_${admin.username}`,
+              visitor_id: `admin_${admin.email}`,
               source: 'admin_login',
               user_agent: navigator.userAgent
             }
@@ -70,13 +78,16 @@ const LoginForm = () => {
         console.error('Error logging visit:', logError);
       }
       
+      // Get role from email (this would normally come from the database)
+      const role = getRoleFromEmail(admin.email);
+      
       // Set user in localStorage 
       // In a real app, this would be handled by Supabase Auth tokens
       localStorage.setItem('user', JSON.stringify({
-        id: `demo-${admin.username}`,
-        username: admin.username,
+        id: `demo-${admin.email}`,
+        email: admin.email,
         displayName: admin.displayName,
-        role: admin.role,
+        role: role,
         isAuthenticated: true,
         lastLogin: new Date().toISOString(),
       }));
@@ -114,15 +125,16 @@ const LoginForm = () => {
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <UserCircle2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="username"
-                  name="username"
-                  placeholder="Enter your username"
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="Enter your email"
                   className="pl-9"
-                  value={formData.username}
+                  value={formData.email}
                   onChange={handleInputChange}
                   required
                 />
@@ -161,17 +173,17 @@ const LoginForm = () => {
           <p className="text-sm text-muted-foreground mb-2">Demo Credentials:</p>
           <div className="grid gap-2">
             {DEMO_ADMINS.map((admin) => (
-              <div key={admin.username} className="flex items-center justify-between text-xs">
+              <div key={admin.email} className="flex items-center justify-between text-xs">
                 <div>
                   <span className="font-medium">{admin.displayName}</span>
-                  <span className="text-muted-foreground"> - {admin.username}</span>
+                  <span className="text-muted-foreground"> - {admin.email}</span>
                 </div>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => {
                     setFormData({
-                      username: admin.username,
+                      email: admin.email,
                       password: admin.password,
                     });
                   }}
