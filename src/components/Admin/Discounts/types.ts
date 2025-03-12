@@ -80,3 +80,12 @@ export interface Warehouse {
   phone: string;
   opening_hours: string;
 }
+
+// Add Json type from Supabase for type compatibility
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];

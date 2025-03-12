@@ -9,32 +9,30 @@ import {
   Building,
   CalendarIcon
 } from 'lucide-react';
-import { 
-  Button,
-  Input,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  Textarea,
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell
-} from '@/components/ui';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { CardContent } from '@/components/ui/card';
+import { CardHeader } from '@/components/ui/card';
+import { CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
+import { SelectContent } from '@/components/ui/select';
+import { SelectItem } from '@/components/ui/select';
+import { SelectTrigger } from '@/components/ui/select';
+import { SelectValue } from '@/components/ui/select';
+import { Dialog } from '@/components/ui/dialog';
+import { DialogContent } from '@/components/ui/dialog';
+import { DialogHeader } from '@/components/ui/dialog';
+import { DialogTitle } from '@/components/ui/dialog';
+import { DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Table } from '@/components/ui/table';
+import { TableHeader } from '@/components/ui/table';
+import { TableRow } from '@/components/ui/table';
+import { TableHead } from '@/components/ui/table';
+import { TableBody } from '@/components/ui/table';
+import { TableCell } from '@/components/ui/table';
 import { toast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -63,7 +61,7 @@ export function InventoryManager({
   const [formData, setFormData] = useState({
     warehouse_id: '',
     quantity_change: 0,
-    transaction_type: 'restock',
+    transaction_type: 'restock' as 'restock' | 'sale' | 'return' | 'adjustment',
     notes: '',
   });
   
@@ -78,7 +76,14 @@ export function InventoryManager({
         .order('created_at', { ascending: false });
         
       if (error) throw error;
-      setTransactions(data || []);
+      
+      // Ensure the transaction_type is one of the allowed values
+      const typedData = data?.map(item => ({
+        ...item,
+        transaction_type: item.transaction_type as 'restock' | 'sale' | 'return' | 'adjustment'
+      })) as InventoryTransaction[];
+      
+      setTransactions(typedData || []);
     } catch (error: any) {
       console.error('Error fetching inventory transactions:', error);
       toast({

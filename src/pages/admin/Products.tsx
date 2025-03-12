@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Package, 
@@ -75,13 +74,8 @@ import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
-import { ProductVariant, ProductCollection } from '@/components/Admin/Discounts/types';
-import { ProductVariantsForm } from '@/components/Admin/Products/ProductVariantsForm';
-import { ProductCollectionsManager } from '@/components/Admin/Products/ProductCollectionsManager';
-import { InventoryManager } from '@/components/Admin/Products/InventoryManager';
-import { ProductCSVImport } from '@/components/Admin/Products/ProductCSVImport';
+import { ProductVariant, ProductCollection, Json } from '@/components/Admin/Discounts/types';
 
-// Types
 interface Product {
   id: string;
   name: string;
@@ -102,7 +96,6 @@ interface Product {
   warehouse_id: string | null;
 }
 
-// Form data interface
 interface ProductFormData {
   name: string;
   description: string;
@@ -131,13 +124,10 @@ const Products: React.FC = () => {
   const [activeTab, setActiveTab] = useState('general');
   const [warehouses, setWarehouses] = useState<{id: string, name: string}[]>([]);
   
-  // Product variants state
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   
-  // Product collections state
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   
-  // Product form state
   const form = useForm<ProductFormData>({
     defaultValues: {
       name: '',
@@ -157,7 +147,6 @@ const Products: React.FC = () => {
     },
   });
   
-  // Fetch products from Supabase
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
@@ -171,7 +160,25 @@ const Products: React.FC = () => {
       }
 
       console.log('Fetched products:', data);
-      setProducts(data || []);
+      
+      const transformedData = data?.map(item => {
+        return {
+          ...item,
+          variants: item.variants ? (item.variants as any[]).map(v => ({
+            ...v,
+            id: v.id || crypto.randomUUID(),
+            attributes: v.attributes || {},
+            price: v.price || 0,
+            discount_price: v.discount_price || null,
+            sku: v.sku || '',
+            stock_quantity: v.stock_quantity || 0,
+            image_url: v.image_url || undefined,
+          })) : null,
+          collections: item.collections || []
+        } as Product;
+      });
+      
+      setProducts(transformedData || []);
     } catch (err) {
       console.error('Error fetching products:', err);
       toast({
@@ -184,7 +191,6 @@ const Products: React.FC = () => {
     }
   };
 
-  // Fetch warehouses (store locations)
   const fetchWarehouses = async () => {
     try {
       const { data, error } = await supabase
@@ -202,20 +208,17 @@ const Products: React.FC = () => {
     }
   };
 
-  // Initial data load
   useEffect(() => {
     fetchProducts();
     fetchWarehouses();
   }, []);
 
-  // Set up realtime subscription
   useRealtimeSubscription(
     [{ table: 'products', event: '*' }],
     {
       products: (payload) => {
         console.log('Product updated, refreshing:', payload);
         
-        // Instead of doing a full refetch, we can update the local state based on the payload
         if (payload.eventType === 'INSERT') {
           setProducts(prev => [payload.new as Product, ...prev]);
         } else if (payload.eventType === 'UPDATE') {
@@ -229,11 +232,10 @@ const Products: React.FC = () => {
         }
       }
     },
-    false, // Disable toast notifications
-    'admin-products-channel' // Custom channel name
+    false,
+    'admin-products-channel'
   );
-  
-  // Filter products based on search and category
+
   const filteredProducts = products.filter(product => {
     const matchesSearch = 
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -247,11 +249,9 @@ const Products: React.FC = () => {
     
     return matchesSearch && matchesCategory && matchesStock;
   });
-  
-  // Helper function to check for low stock
+
   const isLowStock = (product: Product) => product.stock_quantity <= (product.low_stock_threshold || 5);
-  
-  // Open edit dialog with product data
+
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
     setVariants(product.variants || []);
@@ -277,11 +277,23 @@ const Products: React.FC = () => {
     setIsAddProductOpen(true);
     setActiveTab('general');
   };
-  
-  // Handle product form submission
+
   const onSubmit = async (data: ProductFormData) => {
     try {
       setIsLoading(true);
+      
+      const supabaseVariants = variants.length > 0 
+        ? variants.map(v => ({
+            id: v.id,
+            name: v.name,
+            attributes: v.attributes,
+            price: v.price,
+            discount_price: v.discount_price,
+            sku: v.sku,
+            stock_quantity: v.stock_quantity,
+            image_url: v.image_url
+          }))
+        : null;
       
       const productData = {
         name: data.name,
@@ -296,14 +308,13 @@ const Products: React.FC = () => {
         is_featured: data.is_featured,
         is_new_arrival: data.is_new_arrival,
         is_on_sale: data.is_on_sale,
-        variants: variants.length > 0 ? variants : null,
+        variants: supabaseVariants,
         collections: selectedCollections.length > 0 ? selectedCollections : [],
         low_stock_threshold: data.low_stock_threshold,
         warehouse_id: data.warehouse_id,
       };
       
       if (editingProduct) {
-        // Update existing product in Supabase
         const { error } = await supabase
           .from('products')
           .update(productData)
@@ -316,10 +327,9 @@ const Products: React.FC = () => {
           description: `${data.name} has been updated successfully.`,
         });
       } else {
-        // Create new product in Supabase
         const { error } = await supabase
           .from('products')
-          .insert(productData);
+          .insert([productData]);
           
         if (error) throw error;
           
@@ -329,12 +339,10 @@ const Products: React.FC = () => {
         });
       }
       
-      // Close dialog and reset form
       setIsAddProductOpen(false);
       setEditingProduct(null);
       resetFormState();
       
-      // Fetch updated products
       fetchProducts();
     } catch (error: any) {
       console.error('Error saving product:', error);
@@ -347,8 +355,7 @@ const Products: React.FC = () => {
       setIsLoading(false);
     }
   };
-  
-  // Reset form state
+
   const resetFormState = () => {
     form.reset({
       name: '',
@@ -369,15 +376,13 @@ const Products: React.FC = () => {
     setVariants([]);
     setSelectedCollections([]);
   };
-  
-  // Delete a product
+
   const handleDeleteProduct = async (productId: string) => {
     try {
       setIsLoading(true);
       const productToDelete = products.find(p => p.id === productId);
       if (!productToDelete) return;
       
-      // Delete from Supabase
       const { error } = await supabase
         .from('products')
         .delete()
@@ -390,7 +395,6 @@ const Products: React.FC = () => {
         description: `${productToDelete.name} has been removed from the catalog.`,
       });
       
-      // Update local state
       setProducts(products.filter(p => p.id !== productId));
     } catch (error: any) {
       console.error('Error deleting product:', error);
@@ -403,22 +407,20 @@ const Products: React.FC = () => {
       setIsLoading(false);
     }
   };
-  
-  // Open add product dialog
+
   const handleAddProduct = () => {
     setEditingProduct(null);
     resetFormState();
     setIsAddProductOpen(true);
     setActiveTab('general');
   };
-  
-  // Handle stock update from inventory manager
+
   const handleStockUpdate = (productId: string, newStock: number) => {
     setProducts(prev => 
       prev.map(p => p.id === productId ? { ...p, stock_quantity: newStock } : p)
     );
   };
-  
+
   return (
     <div className="space-y-6">
       <div>
@@ -638,7 +640,6 @@ const Products: React.FC = () => {
         </CardContent>
       </Card>
       
-      {/* Add/Edit Product Dialog */}
       <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1033,3 +1034,4 @@ const Products: React.FC = () => {
 };
 
 export default Products;
+

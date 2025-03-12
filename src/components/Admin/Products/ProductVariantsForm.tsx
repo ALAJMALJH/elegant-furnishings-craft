@@ -1,20 +1,17 @@
-
 import React, { useState } from 'react';
 import { X, Plus, Image as ImageIcon } from 'lucide-react';
-import { 
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { CardContent } from '@/components/ui/card';
+import { CardHeader } from '@/components/ui/card';
+import { CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
+import { SelectContent } from '@/components/ui/select';
+import { SelectItem } from '@/components/ui/select';
+import { SelectTrigger } from '@/components/ui/select';
+import { SelectValue } from '@/components/ui/select';
 import { ProductVariant } from '@/components/Admin/Discounts/types';
 
 interface ProductVariantFormProps {
