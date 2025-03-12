@@ -57,6 +57,20 @@ export const checkUserDatabaseRole = async (databaseRole: string): Promise<boole
   }
 };
 
+// Function to check if current user can manage products
+export const canManageProducts = async (): Promise<boolean> => {
+  try {
+    // Check if user has admin or moderator role (which can manage products)
+    const isAdmin = await checkUserDatabaseRole('admin');
+    const isModerator = await checkUserDatabaseRole('moderator');
+    
+    return isAdmin || isModerator;
+  } catch (error) {
+    console.error('Error checking product management permissions:', error);
+    return false;
+  }
+};
+
 // Enable realtime subscriptions for relevant tables
 const enableRealtimeForTables = async () => {
   try {
