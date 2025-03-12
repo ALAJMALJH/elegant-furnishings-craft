@@ -147,7 +147,7 @@ const officeReviews = [
 
 const officeBlogPosts = [
   {
-    id: 1,
+    id: "1",
     title: "Creating a Productive Home Office",
     excerpt: "Essential furniture pieces and layout tips for a workspace that boosts focus and efficiency.",
     image: "https://images.unsplash.com/photo-1593062096033-9a26b09da705",
@@ -156,7 +156,7 @@ const officeBlogPosts = [
     category: "Productivity"
   },
   {
-    id: 2,
+    id: "2",
     title: "Ergonomics 101: Choosing the Right Office Chair",
     excerpt: "How to select a chair that supports good posture and prevents work-related pain.",
     image: "https://images.unsplash.com/photo-1580480055273-228ff5388ef8",
@@ -165,7 +165,7 @@ const officeBlogPosts = [
     category: "Ergonomics"
   },
   {
-    id: 3,
+    id: "3",
     title: "Office Storage Solutions for Any Space",
     excerpt: "Clever ways to organize paperwork, supplies, and equipment in offices of all sizes.",
     image: "https://images.unsplash.com/photo-1594026112284-02bb6f3352fe",

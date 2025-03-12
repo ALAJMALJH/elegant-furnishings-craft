@@ -147,7 +147,7 @@ const livingRoomReviews = [
 
 const livingRoomBlogPosts = [
   {
-    id: 1,
+    id: "1",
     title: "5 Ways to Style Your Coffee Table",
     excerpt: "Learn how to create a stunning coffee table display that reflects your personal style.",
     image: "https://images.unsplash.com/photo-1588703195542-ccf2c39f2522",
@@ -156,7 +156,7 @@ const livingRoomBlogPosts = [
     category: "Styling Tips"
   },
   {
-    id: 2,
+    id: "2",
     title: "Small Living Room? Big Ideas!",
     excerpt: "Maximize your space with these clever furniture arrangements and storage solutions.",
     image: "https://images.unsplash.com/photo-1600585152220-90363fe7e115",
@@ -165,7 +165,7 @@ const livingRoomBlogPosts = [
     category: "Space Planning"
   },
   {
-    id: 3,
+    id: "3",
     title: "How to Care for Leather Furniture",
     excerpt: "Keep your leather sofas and chairs looking beautiful for years with these maintenance tips.",
     image: "https://images.unsplash.com/photo-1567016376408-0226e4d0c1ea",

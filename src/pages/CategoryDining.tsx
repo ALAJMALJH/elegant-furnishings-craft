@@ -147,7 +147,7 @@ const diningReviews = [
 
 const diningBlogPosts = [
   {
-    id: 1,
+    id: "1",
     title: "How to Choose the Perfect Dining Table",
     excerpt: "Finding the right size, shape, and style for your space and entertaining needs.",
     image: "https://images.unsplash.com/photo-1615874959474-d609969a20ed",
@@ -156,7 +156,7 @@ const diningBlogPosts = [
     category: "Buying Guide"
   },
   {
-    id: 2,
+    id: "2",
     title: "Creating the Perfect Dinner Party Setting",
     excerpt: "Tips for styling your dining space to impress guests and create memorable meals.",
     image: "https://images.unsplash.com/photo-1554995207-c18c203602cb",
@@ -165,7 +165,7 @@ const diningBlogPosts = [
     category: "Entertaining"
   },
   {
-    id: 3,
+    id: "3",
     title: "Mixing and Matching Dining Chairs",
     excerpt: "How to create a designer look with different styles of dining seating.",
     image: "https://images.unsplash.com/photo-1604578762246-41134e37f9cc",

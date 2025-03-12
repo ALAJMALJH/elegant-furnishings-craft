@@ -147,7 +147,7 @@ const bedroomReviews = [
 
 const bedroomBlogPosts = [
   {
-    id: 1,
+    id: "1",
     title: "Create a Peaceful Bedroom Retreat",
     excerpt: "Transform your bedroom into a calming sanctuary with these design tips and furniture choices.",
     image: "https://images.unsplash.com/photo-1617325247661-675ab4b64b2a",
@@ -156,7 +156,7 @@ const bedroomBlogPosts = [
     category: "Interior Design"
   },
   {
-    id: 2,
+    id: "2",
     title: "Maximize Storage in Small Bedrooms",
     excerpt: "Clever storage solutions and space-saving furniture ideas for compact bedrooms.",
     image: "https://images.unsplash.com/photo-1610099917789-a87f5c2ba057",
@@ -165,7 +165,7 @@ const bedroomBlogPosts = [
     category: "Space Planning"
   },
   {
-    id: 3,
+    id: "3",
     title: "The Perfect Bed for Quality Sleep",
     excerpt: "How to choose the right bed frame, mattress, and bedding for optimal comfort and rest.",
     image: "https://images.unsplash.com/photo-1505693314120-0d443867891c",

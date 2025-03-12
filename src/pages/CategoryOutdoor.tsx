@@ -147,7 +147,7 @@ const outdoorReviews = [
 
 const outdoorBlogPosts = [
   {
-    id: 1,
+    id: "1",
     title: "Creating an Outdoor Oasis in the UAE",
     excerpt: "Design tips for beautiful outdoor spaces that can withstand the Gulf climate.",
     image: "https://images.unsplash.com/photo-1600585152220-90363fe7e115",
@@ -156,7 +156,7 @@ const outdoorBlogPosts = [
     category: "Landscape Design"
   },
   {
-    id: 2,
+    id: "2",
     title: "Outdoor Furniture Care: Desert Edition",
     excerpt: "How to maintain and protect your outdoor furniture from sun, sand, and humidity.",
     image: "https://images.unsplash.com/photo-1600566752355-35792bedcfea",
@@ -165,7 +165,7 @@ const outdoorBlogPosts = [
     category: "Maintenance"
   },
   {
-    id: 3,
+    id: "3",
     title: "Al Fresco Dining: Setting the Perfect Outdoor Table",
     excerpt: "Create memorable outdoor dining experiences with these styling and serving tips.",
     image: "https://images.unsplash.com/photo-1600210492493-0946911123ea",
