@@ -21,6 +21,18 @@ import ShopAll from "./pages/ShopAll";
 import BlogInspiration from "./pages/BlogInspiration";
 import BlogPost from "./pages/BlogPost";
 
+// Import admin pages
+import Auth from "./pages/Auth";
+import ProtectedRoute from "./components/Auth/ProtectedRoute";
+import AdminLayout from "./components/Admin/AdminLayout";
+import Dashboard from "./pages/admin/Dashboard";
+import Products from "./pages/admin/Products";
+import Sales from "./pages/admin/Sales";
+import Customers from "./pages/admin/Customers";
+import Analytics from "./pages/admin/Analytics";
+import Discounts from "./pages/admin/Discounts";
+import Settings from "./pages/admin/Settings";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -44,6 +56,23 @@ const App = () => (
           <Route path="/shop" element={<ShopAll />} />
           <Route path="/blog" element={<BlogInspiration />} />
           <Route path="/blog/:id" element={<BlogPost />} />
+          
+          {/* Auth route */}
+          <Route path="/auth" element={<Auth />} />
+          
+          {/* Protected admin routes */}
+          <Route path="/admin" element={<ProtectedRoute />}>
+            <Route element={<AdminLayout />}>
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="products" element={<Products />} />
+              <Route path="sales" element={<Sales />} />
+              <Route path="customers" element={<Customers />} />
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="discounts" element={<Discounts />} />
+              <Route path="settings" element={<Settings />} />
+            </Route>
+          </Route>
+          
           <Route path="*" element={<NotFound />} />
         </Routes>
         <ChatBox />
