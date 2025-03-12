@@ -1,5 +1,5 @@
-
 import React, { useEffect } from "react";
+import { ProductSyncProvider } from "@/contexts/ProductSyncContext";
 import Navbar from "../components/Layout/Navbar";
 import Footer from "../components/Layout/Footer";
 import HeroSection from "../components/Home/HeroSection";
@@ -11,7 +11,6 @@ import OffersSection from "../components/Home/OffersSection";
 import BlogSection from "../components/Home/BlogSection";
 import InstagramSection from "../components/Home/InstagramSection";
 import { ChevronUp } from "lucide-react";
-import { ProductSyncProvider } from "@/contexts/ProductSyncContext";
 
 const Index = () => {
   const [showScrollTop, setShowScrollTop] = React.useState(false);
