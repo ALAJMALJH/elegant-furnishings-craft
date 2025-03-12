@@ -56,7 +56,14 @@ import {
 } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { toast } from '@/components/ui/use-toast';
-import { ROLES } from '@/components/Auth/ProtectedRoute';
+import { rolePermissions } from '@/components/Auth/ProtectedRoute';
+
+// Define roles constants to replace the imported ROLES
+const ROLES = {
+  SUPER_ADMIN: 'super_admin',
+  MANAGER: 'manager',
+  SUPPORT: 'support'
+};
 
 // User type
 interface User {
