@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { toast } from '@/components/ui/use-toast';
 
@@ -136,7 +135,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   const generateWhatsAppLink = () => {
-    const baseUrl = 'https://wa.me/971XXXXXXXXX'; // Replace with your WhatsApp business number
+    const baseUrl = 'https://wa.me/971559143341'; // WhatsApp business number
     const items = state.items.map(item => 
       `• ${item.name} (${item.quantity}x) - AED ${(item.price * item.quantity).toFixed(2)}`
     ).join('\n');
