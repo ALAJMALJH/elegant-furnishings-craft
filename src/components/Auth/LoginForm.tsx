@@ -10,7 +10,17 @@ import { Eye, EyeOff, Lock, User } from "lucide-react";
 // Simulated admin users - in a real application, this would be in a secure database
 const ADMIN_USERS = [
   { username: 'admin', password: 'admin123', role: 'admin' },
-  { username: 'manager', password: 'manager123', role: 'manager' }
+  { username: 'manager', password: 'manager123', role: 'manager' },
+  { username: 'ceo@ajmalfurniture.com', password: 'Ceoajmal11CE@', role: 'ceo' },
+  { username: 'cto@ajmalfurniture.com', password: 'Ctoajmal11CT@', role: 'cto' },
+  { username: 'manager@ajmalfurniture.com', password: 'Managerajmal11MA@', role: 'manager' },
+  { username: 'sales@ajmalfurniture.com', password: 'Salesajmal11SA@', role: 'sales' },
+  { username: 'support@ajmalfurniture.com', password: 'Supportajmal11SU@', role: 'support' },
+  { username: 'hr@ajmalfurniture.com', password: 'Hrajmal11HR@', role: 'hr' },
+  { username: 'marketing@ajmalfurniture.com', password: 'Marketingajmal11MA@', role: 'marketing' },
+  { username: 'finance@ajmalfurniture.com', password: 'Financeajmal11FI@', role: 'finance' },
+  { username: 'operations@ajmalfurniture.com', password: 'Operationsajmal11OP@', role: 'operations' },
+  { username: 'admin@ajmalfurniture.com', password: 'Adminajmal11AD@', role: 'admin' }
 ];
 
 const LoginForm = () => {
