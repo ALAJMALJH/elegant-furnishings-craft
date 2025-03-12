@@ -79,6 +79,7 @@ import { ProductCSVImport } from '@/components/Admin/Products/ProductCSVImport';
 import { ProductVariantsForm } from '@/components/Admin/Products/ProductVariantsForm';
 import { ProductCollectionsManager } from '@/components/Admin/Products/ProductCollectionsManager';
 import { InventoryManager } from '@/components/Admin/Products/InventoryManager';
+import { ImageUploader } from '@/components/Admin/Products/ImageUploader';
 
 interface Product {
   id: string;
@@ -799,25 +800,12 @@ const Products: React.FC = () => {
                         name="image_url"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Image URL</FormLabel>
                             <FormControl>
-                              <Input placeholder="https://example.com/image.jpg" {...field} />
+                              <ImageUploader
+                                initialImageUrl={field.value}
+                                onImageUploaded={(url) => field.onChange(url)}
+                              />
                             </FormControl>
-                            <FormDescription>
-                              Enter a URL for the product image
-                            </FormDescription>
-                            {field.value && (
-                              <div className="mt-2 h-32 bg-muted rounded overflow-hidden">
-                                <img 
-                                  src={field.value} 
-                                  alt="Preview" 
-                                  className="w-full h-full object-contain"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).src = '/placeholder.svg';
-                                  }}
-                                />
-                              </div>
-                            )}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1038,4 +1026,3 @@ const Products: React.FC = () => {
 };
 
 export default Products;
-
