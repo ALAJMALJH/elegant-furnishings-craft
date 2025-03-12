@@ -2,18 +2,134 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Calendar, User, ChevronLeft } from 'lucide-react';
-import { blogPosts } from '../components/Home/BlogSection';
+import { blogPostsFallback } from '../components/Home/BlogSection';
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+interface BlogPostData {
+  id: string;
+  title: string;
+  excerpt: string;
+  image: string;
+  date: string;
+  author: string;
+  category: string;
+  content?: string;
+}
 
 const BlogPost = () => {
   const { id } = useParams<{ id: string }>();
-  const [post, setPost] = useState<typeof blogPosts[0] | null>(null);
+  const [post, setPost] = useState<BlogPostData | null>(null);
+  const [relatedPosts, setRelatedPosts] = useState<BlogPostData[]>(blogPostsFallback);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
   
   useEffect(() => {
-    if (id) {
-      const foundPost = blogPosts.find(post => post.id === parseInt(id));
-      setPost(foundPost || null);
-    }
-  }, [id]);
+    const fetchBlogPost = async () => {
+      if (!id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from("blog_posts")
+          .select("*")
+          .eq("id", id)
+          .single();
+          
+        if (error) {
+          console.error("Error fetching blog post:", error);
+          // Fallback to static data
+          const fallbackPost = blogPostsFallback.find(post => post.id === id);
+          if (fallbackPost) {
+            setPost(fallbackPost);
+          } else {
+            toast({
+              title: "Post not found",
+              description: "The requested blog post could not be found",
+              variant: "destructive",
+            });
+          }
+          return;
+        }
+        
+        if (data) {
+          setPost({
+            id: data.id,
+            title: data.title,
+            excerpt: data.excerpt,
+            image: data.image_url,
+            date: new Date(data.date).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            }),
+            author: data.author,
+            category: data.category,
+            content: data.content
+          });
+          
+          // Fetch related posts
+          fetchRelatedPosts(data.category, data.id);
+        }
+      } catch (err) {
+        console.error("Failed to fetch blog post:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    const fetchRelatedPosts = async (category: string, currentId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from("blog_posts")
+          .select("*")
+          .eq("category", category)
+          .neq("id", currentId)
+          .limit(2);
+          
+        if (error) {
+          console.error("Error fetching related posts:", error);
+          return;
+        }
+        
+        if (data && data.length > 0) {
+          setRelatedPosts(
+            data.map((post) => ({
+              id: post.id,
+              title: post.title,
+              excerpt: post.excerpt,
+              image: post.image_url,
+              date: new Date(post.date).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              }),
+              author: post.author,
+              category: post.category,
+            }))
+          );
+        } else {
+          // Use fallback posts that are different from current
+          setRelatedPosts(
+            blogPostsFallback.filter(post => post.id !== id).slice(0, 2)
+          );
+        }
+      } catch (err) {
+        console.error("Failed to fetch related posts:", err);
+      }
+    };
+    
+    fetchBlogPost();
+  }, [id, toast]);
+  
+  if (loading) {
+    return (
+      <div className="container-custom py-20">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-4">Loading...</h2>
+        </div>
+      </div>
+    );
+  }
   
   if (!post) {
     return (
@@ -76,79 +192,82 @@ const BlogPost = () => {
               {post.excerpt}
             </p>
             
-            <p className="mb-4">
-              At Al Ajmal Furniture, we believe in creating spaces that reflect your personality 
-              and lifestyle. Our expert team of designers work tirelessly to bring you the latest 
-              trends and timeless classics that will transform your home.
-            </p>
-            
-            <h2 className="text-xl font-semibold mt-8 mb-4">Design Philosophy</h2>
-            <p className="mb-4">
-              Good furniture design considers the purpose, materials, functionality, and aesthetic appeal. 
-              We carefully balance these elements to create pieces that are not just beautiful but also 
-              practical for everyday use.
-            </p>
-            
-            <p className="mb-4">
-              When selecting new furniture, consider the following aspects:
-            </p>
-            
-            <ul className="list-disc pl-5 mb-6">
-              <li className="mb-2">Functionality: How will the piece be used in your space?</li>
-              <li className="mb-2">Size and scale: Will it fit comfortably in your room?</li>
-              <li className="mb-2">Style: Does it complement your existing décor?</li>
-              <li className="mb-2">Material quality: Is it built to last?</li>
-              <li className="mb-2">Comfort: Will you enjoy using it daily?</li>
-            </ul>
-            
-            <h2 className="text-xl font-semibold mt-8 mb-4">Maintenance Tips</h2>
-            <p className="mb-4">
-              To keep your furniture looking its best for years to come:
-            </p>
-            
-            <ol className="list-decimal pl-5 mb-6">
-              <li className="mb-2">Dust regularly with a soft, clean cloth.</li>
-              <li className="mb-2">Keep wooden furniture away from direct sunlight to prevent fading.</li>
-              <li className="mb-2">Use coasters under drinks to prevent water rings.</li>
-              <li className="mb-2">Clean spills immediately to prevent staining.</li>
-              <li className="mb-2">Apply appropriate polishes and conditioners as recommended for your specific furniture type.</li>
-            </ol>
-            
-            <blockquote className="border-l-4 border-furniture-accent pl-4 italic my-6">
-              "The details are not the details. They make the design." - Charles Eames
-            </blockquote>
-            
-            <p>
-              We hope this article has provided you with valuable insights into furniture design and care. 
-              Visit our showroom to explore our latest collections and speak with our design consultants 
-              about creating your perfect space.
-            </p>
+            {post.content ? (
+              <div dangerouslySetInnerHTML={{ __html: post.content }} />
+            ) : (
+              <>
+                <p className="mb-4">
+                  At Al Ajmal Furniture, we believe in creating spaces that reflect your personality 
+                  and lifestyle. Our expert team of designers work tirelessly to bring you the latest 
+                  trends and timeless classics that will transform your home.
+                </p>
+                
+                <h2 className="text-xl font-semibold mt-8 mb-4">Design Philosophy</h2>
+                <p className="mb-4">
+                  Good furniture design considers the purpose, materials, functionality, and aesthetic appeal. 
+                  We carefully balance these elements to create pieces that are not just beautiful but also 
+                  practical for everyday use.
+                </p>
+                
+                <p className="mb-4">
+                  When selecting new furniture, consider the following aspects:
+                </p>
+                
+                <ul className="list-disc pl-5 mb-6">
+                  <li className="mb-2">Functionality: How will the piece be used in your space?</li>
+                  <li className="mb-2">Size and scale: Will it fit comfortably in your room?</li>
+                  <li className="mb-2">Style: Does it complement your existing décor?</li>
+                  <li className="mb-2">Material quality: Is it built to last?</li>
+                  <li className="mb-2">Comfort: Will you enjoy using it daily?</li>
+                </ul>
+                
+                <h2 className="text-xl font-semibold mt-8 mb-4">Maintenance Tips</h2>
+                <p className="mb-4">
+                  To keep your furniture looking its best for years to come:
+                </p>
+                
+                <ol className="list-decimal pl-5 mb-6">
+                  <li className="mb-2">Dust regularly with a soft, clean cloth.</li>
+                  <li className="mb-2">Keep wooden furniture away from direct sunlight to prevent fading.</li>
+                  <li className="mb-2">Use coasters under drinks to prevent water rings.</li>
+                  <li className="mb-2">Clean spills immediately to prevent staining.</li>
+                  <li className="mb-2">Apply appropriate polishes and conditioners as recommended for your specific furniture type.</li>
+                </ol>
+                
+                <blockquote className="border-l-4 border-furniture-accent pl-4 italic my-6">
+                  "The details are not the details. They make the design." - Charles Eames
+                </blockquote>
+                
+                <p>
+                  We hope this article has provided you with valuable insights into furniture design and care. 
+                  Visit our showroom to explore our latest collections and speak with our design consultants 
+                  about creating your perfect space.
+                </p>
+              </>
+            )}
           </div>
           
           <div className="mt-12 pt-8 border-t border-gray-200">
             <h3 className="text-xl font-semibold mb-6">Related Posts</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {blogPosts
-                .filter(relatedPost => relatedPost.id !== post.id)
-                .slice(0, 2)
-                .map(relatedPost => (
-                  <Link 
-                    key={relatedPost.id} 
-                    to={`/blog/${relatedPost.id}`}
-                    className="group"
-                  >
-                    <div className="aspect-w-16 aspect-h-9 mb-3 overflow-hidden rounded">
-                      <img 
-                        src={relatedPost.image} 
-                        alt={relatedPost.title} 
-                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                      />
-                    </div>
-                    <h4 className="font-medium group-hover:text-furniture-accent transition-colors">
-                      {relatedPost.title}
-                    </h4>
-                  </Link>
-                ))}
+              {relatedPosts.map(relatedPost => (
+                <Link 
+                  key={relatedPost.id} 
+                  to={`/blog/${relatedPost.id}`}
+                  className="group"
+                >
+                  <div className="aspect-w-16 aspect-h-9 mb-3 overflow-hidden rounded">
+                    <img 
+                      src={relatedPost.image} 
+                      alt={relatedPost.title} 
+                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                    />
+                  </div>
+                  <h4 className="font-medium group-hover:text-furniture-accent transition-colors">
+                    {relatedPost.title}
+                  </h4>
+                </Link>
+              ))}
             </div>
           </div>
         </div>

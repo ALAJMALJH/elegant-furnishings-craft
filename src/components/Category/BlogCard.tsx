@@ -2,7 +2,17 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, User } from 'lucide-react';
-import { BlogPost } from './CategoryPage';
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  excerpt: string;
+  image: string;
+  date: string;
+  author: string;
+  category: string;
+  content?: string;
+}
 
 interface BlogCardProps {
   post: BlogPost;

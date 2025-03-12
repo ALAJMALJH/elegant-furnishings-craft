@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Calendar, User, ChevronRight } from "lucide-react";
@@ -6,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export const blogPostsFallback = [
   {
-    id: 1,
+    id: "1",
     title: "Top 5 Sofa Designs for Modern Homes",
     excerpt:
       "Discover the most stylish and comfortable sofa designs that will transform your living space into a modern haven.",
@@ -16,7 +17,7 @@ export const blogPostsFallback = [
     category: "Design Tips",
   },
   {
-    id: 2,
+    id: "2",
     title: "How to Maintain Wooden Furniture",
     excerpt:
       "Learn the essential care tips and techniques to keep your wooden furniture looking beautiful for generations.",
@@ -26,7 +27,7 @@ export const blogPostsFallback = [
     category: "Furniture Care",
   },
   {
-    id: 3,
+    id: "3",
     title: "Latest Furniture Trends in 2023",
     excerpt:
       "Stay ahead of the curve with our guide to the hottest furniture trends that are dominating interior design this year.",
@@ -64,14 +65,17 @@ const BlogSection = () => {
         if (data && data.length > 0) {
           setBlogPosts(
             data.map((post) => ({
-              ...post,
               id: post.id,
+              title: post.title,
+              excerpt: post.excerpt,
               image: post.image_url,
               date: new Date(post.date).toLocaleDateString("en-US", {
                 year: "numeric",
                 month: "long",
                 day: "numeric",
               }),
+              author: post.author,
+              category: post.category,
             }))
           );
         }
