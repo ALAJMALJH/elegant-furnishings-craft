@@ -6,7 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import type { Json } from '@/integrations/supabase/types';
 
-interface CartItem {
+// Export the CartItem interface so it can be imported elsewhere
+export interface CartItem {
   id: string;
   name: string;
   price: number;
