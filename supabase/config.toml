@@ -2,5 +2,3 @@
 project_id = "tekpogcmgdfdbgnzivvi"
 [functions.chatbot]
 verify_jwt = false
-[functions.track-visit]
-verify_jwt = false
