@@ -389,6 +389,36 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_orders: {
+        Row: {
+          cart_data: Json
+          created_at: string | null
+          customer_phone: string | null
+          final_price: number | null
+          id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          cart_data: Json
+          created_at?: string | null
+          customer_phone?: string | null
+          final_price?: number | null
+          id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          cart_data?: Json
+          created_at?: string | null
+          customer_phone?: string | null
+          final_price?: number | null
+          id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,8 +20,8 @@ import AboutUs from "./pages/AboutUs";
 import ShopAll from "./pages/ShopAll";
 import BlogInspiration from "./pages/BlogInspiration";
 import BlogPost from "./pages/BlogPost";
-import CartPage from "./components/Shopping/CartPage";
-import { CartProvider } from "./components/Shopping/CartContext";
+import CartPage from "./components/Cart/CartPage";
+import { CartProvider } from "./components/Cart/CartContext";
 
 // Import admin pages
 import Auth from "./pages/Auth";

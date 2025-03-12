@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   Package, 
@@ -9,7 +10,8 @@ import {
   Trash,
   CheckCircle,
   XCircle,
-  TruckIcon 
+  TruckIcon,
+  Phone 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,7 +55,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from '@/components/ui/use-toast';
+import WhatsAppOrderManagement from '@/components/Admin/WhatsAppOrderManagement';
 
 type OrderStatus = 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
 
@@ -143,6 +147,7 @@ const Sales: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
+  const [activeTab, setActiveTab] = useState('regular');
   
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
@@ -186,206 +191,227 @@ const Sales: React.FC = () => {
         <p className="text-muted-foreground mt-2">Manage orders and transactions.</p>
       </div>
       
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-grow">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search orders..."
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full md:w-auto grid-cols-2">
+          <TabsTrigger value="regular" className="flex items-center">
+            <Package className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Regular Orders</span>
+            <span className="sm:hidden">Orders</span>
+          </TabsTrigger>
+          <TabsTrigger value="whatsapp" className="flex items-center">
+            <Phone className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">WhatsApp Orders</span>
+            <span className="sm:hidden">WhatsApp</span>
+          </TabsTrigger>
+        </TabsList>
         
-        <div className="w-full sm:w-48">
-          <Select
-            value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="shipped">Shipped</SelectItem>
-              <SelectItem value="delivered">Delivered</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="refunded">Refunded</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Order Management</CardTitle>
-          <CardDescription>
-            {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'} found
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order #</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.orderNumber}</TableCell>
-                  <TableCell>
-                    <div>{order.customerName}</div>
-                    <div className="text-sm text-muted-foreground">{order.customerEmail}</div>
-                  </TableCell>
-                  <TableCell>{order.date}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">AED {order.total.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => setCurrentOrder(order)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-3xl">
-                        <DialogHeader>
-                          <DialogTitle>Order Details - {currentOrder?.orderNumber}</DialogTitle>
-                          <DialogDescription>
-                            View and manage order information
-                          </DialogDescription>
-                        </DialogHeader>
-                        
-                        {currentOrder && (
-                          <div className="space-y-6">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <div>
-                                <h3 className="text-sm font-medium text-muted-foreground mb-1">Customer Information</h3>
-                                <p className="font-medium">{currentOrder.customerName}</p>
-                                <p className="text-sm">{currentOrder.customerEmail}</p>
-                              </div>
-                              <div>
-                                <h3 className="text-sm font-medium text-muted-foreground mb-1">Order Information</h3>
-                                <p className="font-medium">Date: {currentOrder.date}</p>
-                                <p className="font-medium">Status: 
-                                  <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getStatusColor(currentOrder.status)}`}>
-                                    {currentOrder.status.charAt(0).toUpperCase() + currentOrder.status.slice(1)}
-                                  </span>
-                                </p>
-                              </div>
-                            </div>
+        <TabsContent value="regular" className="mt-6">
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-grow">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search orders..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            <div className="w-full sm:w-48">
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="shipped">Shipped</SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="refunded">Refunded</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Order Management</CardTitle>
+              <CardDescription>
+                {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'} found
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order #</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredOrders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">{order.orderNumber}</TableCell>
+                      <TableCell>
+                        <div>{order.customerName}</div>
+                        <div className="text-sm text-muted-foreground">{order.customerEmail}</div>
+                      </TableCell>
+                      <TableCell>{order.date}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">AED {order.total.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => setCurrentOrder(order)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-3xl">
+                            <DialogHeader>
+                              <DialogTitle>Order Details - {currentOrder?.orderNumber}</DialogTitle>
+                              <DialogDescription>
+                                View and manage order information
+                              </DialogDescription>
+                            </DialogHeader>
                             
-                            <div>
-                              <h3 className="text-sm font-medium text-muted-foreground mb-3">Order Items</h3>
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead className="text-center">Quantity</TableHead>
-                                    <TableHead className="text-right">Price</TableHead>
-                                    <TableHead className="text-right">Total</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {currentOrder.items.map((item) => (
-                                    <TableRow key={item.id}>
-                                      <TableCell className="font-medium">{item.productName}</TableCell>
-                                      <TableCell className="text-center">{item.quantity}</TableCell>
-                                      <TableCell className="text-right">AED {item.price.toFixed(2)}</TableCell>
-                                      <TableCell className="text-right">AED {(item.price * item.quantity).toFixed(2)}</TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
-                            
-                            <div className="flex justify-between items-center pt-4 border-t">
-                              <div className="text-lg font-bold">Total: AED {currentOrder.total.toFixed(2)}</div>
-                              <div>
-                                <Select 
-                                  defaultValue={currentOrder.status}
-                                  onValueChange={(value: OrderStatus) => handleStatusUpdate(currentOrder.id, value)}
-                                >
-                                  <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="Update status" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="processing">Processing</SelectItem>
-                                    <SelectItem value="shipped">Shipped</SelectItem>
-                                    <SelectItem value="delivered">Delivered</SelectItem>
-                                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                                    <SelectItem value="refunded">Refunded</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                            {currentOrder && (
+                              <div className="space-y-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                  <div>
+                                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Customer Information</h3>
+                                    <p className="font-medium">{currentOrder.customerName}</p>
+                                    <p className="text-sm">{currentOrder.customerEmail}</p>
+                                  </div>
+                                  <div>
+                                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Order Information</h3>
+                                    <p className="font-medium">Date: {currentOrder.date}</p>
+                                    <p className="font-medium">Status: 
+                                      <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getStatusColor(currentOrder.status)}`}>
+                                        {currentOrder.status.charAt(0).toUpperCase() + currentOrder.status.slice(1)}
+                                      </span>
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                <div>
+                                  <h3 className="text-sm font-medium text-muted-foreground mb-3">Order Items</h3>
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead>Product</TableHead>
+                                        <TableHead className="text-center">Quantity</TableHead>
+                                        <TableHead className="text-right">Price</TableHead>
+                                        <TableHead className="text-right">Total</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {currentOrder.items.map((item) => (
+                                        <TableRow key={item.id}>
+                                          <TableCell className="font-medium">{item.productName}</TableCell>
+                                          <TableCell className="text-center">{item.quantity}</TableCell>
+                                          <TableCell className="text-right">AED {item.price.toFixed(2)}</TableCell>
+                                          <TableCell className="text-right">AED {(item.price * item.quantity).toFixed(2)}</TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                                
+                                <div className="flex justify-between items-center pt-4 border-t">
+                                  <div className="text-lg font-bold">Total: AED {currentOrder.total.toFixed(2)}</div>
+                                  <div>
+                                    <Select 
+                                      defaultValue={currentOrder.status}
+                                      onValueChange={(value: OrderStatus) => handleStatusUpdate(currentOrder.id, value)}
+                                    >
+                                      <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="Update status" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="processing">Processing</SelectItem>
+                                        <SelectItem value="shipped">Shipped</SelectItem>
+                                        <SelectItem value="delivered">Delivered</SelectItem>
+                                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                                        <SelectItem value="refunded">Refunded</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                        )}
+                            )}
+                            
+                            <DialogFooter className="mt-6">
+                              <DialogClose asChild>
+                                <Button type="button" variant="outline">Close</Button>
+                              </DialogClose>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
                         
-                        <DialogFooter className="mt-6">
-                          <DialogClose asChild>
-                            <Button type="button" variant="outline">Close</Button>
-                          </DialogClose>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                    
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <ArrowUpDown className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {order.status === 'processing' && (
-                          <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'shipped')}>
-                            <TruckIcon className="mr-2 h-4 w-4" />
-                            Mark as Shipped
-                          </DropdownMenuItem>
-                        )}
-                        {order.status === 'shipped' && (
-                          <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'delivered')}>
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Mark as Delivered
-                          </DropdownMenuItem>
-                        )}
-                        {(order.status === 'processing' || order.status === 'shipped') && (
-                          <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'cancelled')}>
-                            <XCircle className="mr-2 h-4 w-4" />
-                            Cancel Order
-                          </DropdownMenuItem>
-                        )}
-                        {order.status !== 'refunded' && order.status !== 'processing' && (
-                          <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'refunded')}>
-                            <Trash className="mr-2 h-4 w-4" />
-                            Process Refund
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <ArrowUpDown className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {order.status === 'processing' && (
+                              <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'shipped')}>
+                                <TruckIcon className="mr-2 h-4 w-4" />
+                                Mark as Shipped
+                              </DropdownMenuItem>
+                            )}
+                            {order.status === 'shipped' && (
+                              <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'delivered')}>
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Mark as Delivered
+                              </DropdownMenuItem>
+                            )}
+                            {(order.status === 'processing' || order.status === 'shipped') && (
+                              <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'cancelled')}>
+                                <XCircle className="mr-2 h-4 w-4" />
+                                Cancel Order
+                              </DropdownMenuItem>
+                            )}
+                            {order.status !== 'refunded' && order.status !== 'processing' && (
+                              <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'refunded')}>
+                                <Trash className="mr-2 h-4 w-4" />
+                                Process Refund
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="whatsapp" className="mt-6">
+          <WhatsAppOrderManagement />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

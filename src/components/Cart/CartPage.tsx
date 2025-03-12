@@ -6,7 +6,7 @@ import {
   Trash2, 
   Plus, 
   Minus,
-  WhatsappIcon
+  Phone
 } from 'lucide-react';
 import { useCart } from './CartContext';
 import { Button } from '@/components/ui/button';
@@ -117,7 +117,7 @@ const CartPage: React.FC = () => {
                   rel="noopener noreferrer"
                 >
                   <Button className="w-full bg-green-600 hover:bg-green-700">
-                    <WhatsappIcon className="mr-2 h-4 w-4" />
+                    <Phone className="mr-2 h-4 w-4" />
                     Place Order via WhatsApp
                   </Button>
                 </a>
