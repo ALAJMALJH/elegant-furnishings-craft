@@ -16,7 +16,8 @@ import {
   AlertCircle,
   ReceiptText,
   CheckCircle2,
-  Download
+  Download,
+  Mail as MailIcon
 } from 'lucide-react';
 import {
   Table,
@@ -472,7 +473,7 @@ const Analytics: React.FC = () => {
                       <TableCell>{cart.time}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm">
-                          <Mail className="h-4 w-4 mr-2" />
+                          <MailIcon className="h-4 w-4 mr-2" />
                           Send Reminder
                         </Button>
                       </TableCell>
