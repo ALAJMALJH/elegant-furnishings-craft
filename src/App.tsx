@@ -21,6 +21,7 @@ import ShopAll from "./pages/ShopAll";
 import BlogInspiration from "./pages/BlogInspiration";
 import BlogPost from "./pages/BlogPost";
 import CartPage from "./components/Cart/CartPage";
+import CartCheck from "./pages/CartCheck";
 import { CartProvider } from "./components/Cart/CartContext";
 
 // Import admin pages
@@ -34,6 +35,7 @@ import Customers from "./pages/admin/Customers";
 import Analytics from "./pages/admin/Analytics";
 import Discounts from "./pages/admin/Discounts";
 import Settings from "./pages/admin/Settings";
+import AdminCartCheck from "./pages/admin/CartCheck";
 
 // Create a client for react-query with retry settings
 const queryClient = new QueryClient({
@@ -69,6 +71,7 @@ const App = () => (
             <Route path="/blog" element={<BlogInspiration />} />
             <Route path="/blog/:id" element={<BlogPost />} />
             <Route path="/cart" element={<CartPage />} />
+            <Route path="/cart-check" element={<CartCheck />} />
             
             {/* Auth route */}
             <Route path="/auth" element={<Auth />} />
@@ -83,6 +86,7 @@ const App = () => (
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="discounts" element={<Discounts />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="cart-check" element={<AdminCartCheck />} />
               </Route>
             </Route>
             
