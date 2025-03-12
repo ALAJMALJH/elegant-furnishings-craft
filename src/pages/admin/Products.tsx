@@ -75,6 +75,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { ProductVariant, ProductCollection, Json } from '@/components/Admin/Discounts/types';
+import { ProductCSVImport } from '@/components/Admin/Products/ProductCSVImport';
+import { ProductVariantsForm } from '@/components/Admin/Products/ProductVariantsForm';
+import { ProductCollectionsManager } from '@/components/Admin/Products/ProductCollectionsManager';
+import { InventoryManager } from '@/components/Admin/Products/InventoryManager';
 
 interface Product {
   id: string;

@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react';
 import { Upload, RefreshCw, Download, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,23 @@ interface ProductCSVImportProps {
   onImportComplete: () => void;
 }
 
+// Define interface for CSV row data
+interface ProductCSVRow {
+  name: string;
+  description: string;
+  price: string;
+  discount_price: string;
+  category: string;
+  subcategory: string;
+  image_url: string;
+  stock_quantity: string;
+  is_bestseller: string;
+  is_featured: string;
+  is_new_arrival: string;
+  is_on_sale: string;
+  low_stock_threshold: string;
+}
+
 export function ProductCSVImport({ onImportComplete }: ProductCSVImportProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStats, setUploadStats] = useState<{
@@ -35,7 +53,7 @@ export function ProductCSVImport({ onImportComplete }: ProductCSVImportProps) {
     setUploadStats(null);
 
     try {
-      Papa.parse(file, {
+      Papa.parse<ProductCSVRow>(file, {
         header: true,
         skipEmptyLines: true,
         complete: async (results) => {
