@@ -38,8 +38,15 @@ export const mapRoleToDatabase = (frontendRole: string): string => {
 // Check if the current user has a specific database role
 export const checkUserDatabaseRole = async (databaseRole: string): Promise<boolean> => {
   try {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) return false;
+    
+    // Call the has_role RPC with both required parameters
     const { data, error } = await supabase.rpc('has_role', { 
-      _role: databaseRole as any 
+      _user_id: user.id,
+      _role: databaseRole as "admin" | "moderator" | "user"
     });
     
     if (error) throw error;
