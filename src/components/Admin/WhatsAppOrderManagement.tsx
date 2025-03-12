@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   ArrowUpDown,
@@ -54,6 +53,7 @@ import {
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { Json } from '@/integrations/supabase/types';
 
 interface CartItem {
   id: string;
@@ -63,17 +63,29 @@ interface CartItem {
   image_url: string;
 }
 
+interface CartData {
+  items: CartItem[];
+  total: number;
+}
+
 interface WhatsAppOrder {
   id: string;
   customer_phone: string;
-  cart_data: {
-    items: CartItem[];
-    total: number;
-  };
+  cart_data: CartData;
   status: 'pending' | 'approved' | 'rejected';
   final_price: number | null;
   created_at: string;
   updated_at: string;
+}
+
+interface RawWhatsAppOrderData {
+  id: string;
+  customer_phone: string | null;
+  cart_data: Json;
+  status: string;
+  final_price: number | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 const WhatsAppOrderManagement: React.FC = () => {
@@ -84,7 +96,6 @@ const WhatsAppOrderManagement: React.FC = () => {
   const [finalPrice, setFinalPrice] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   
-  // Fetch orders from Supabase
   const fetchOrders = async () => {
     setIsLoading(true);
     try {
@@ -95,7 +106,17 @@ const WhatsAppOrderManagement: React.FC = () => {
       
       if (error) throw error;
       
-      setOrders(data as WhatsAppOrder[]);
+      const transformedOrders: WhatsAppOrder[] = (data as RawWhatsAppOrderData[]).map(order => ({
+        id: order.id,
+        customer_phone: order.customer_phone || '',
+        cart_data: order.cart_data as unknown as CartData,
+        status: order.status as 'pending' | 'approved' | 'rejected',
+        final_price: order.final_price,
+        created_at: order.created_at || new Date().toISOString(),
+        updated_at: order.updated_at || new Date().toISOString()
+      }));
+      
+      setOrders(transformedOrders);
     } catch (error) {
       console.error('Error fetching WhatsApp orders:', error);
       toast({
@@ -108,12 +129,10 @@ const WhatsAppOrderManagement: React.FC = () => {
     }
   };
   
-  // Initialize and fetch orders on component mount
   useEffect(() => {
     fetchOrders();
   }, []);
   
-  // Set up real-time subscription for orders
   useRealtimeSubscription(
     [{ table: 'whatsapp_orders', event: '*' }],
     {
@@ -124,7 +143,6 @@ const WhatsAppOrderManagement: React.FC = () => {
     true
   );
   
-  // Handle order status update
   const updateOrderStatus = async (orderId: string, status: 'approved' | 'rejected', price?: number) => {
     try {
       const updates = { 
@@ -144,12 +162,10 @@ const WhatsAppOrderManagement: React.FC = () => {
         description: `The order has been ${status === 'approved' ? 'approved' : 'rejected'} successfully`,
       });
       
-      // Update local state
       setOrders(orders.map(order => 
         order.id === orderId ? { ...order, status, ...(status === 'approved' && price ? { final_price: price } : {}) } : order
       ));
       
-      // Reset final price input
       setFinalPrice('');
     } catch (error) {
       console.error(`Error ${status === 'approved' ? 'approving' : 'rejecting'} order:`, error);
@@ -161,14 +177,12 @@ const WhatsAppOrderManagement: React.FC = () => {
     }
   };
   
-  // Filter orders based on status and search term
   const filteredOrders = orders.filter(order => {
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     const matchesSearch = order.customer_phone.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
   
-  // Format date string
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('en-US', {
@@ -180,7 +194,6 @@ const WhatsAppOrderManagement: React.FC = () => {
     }).format(date);
   };
   
-  // Handle approval with final price
   const handleApprove = () => {
     if (!currentOrder) return;
     
@@ -197,7 +210,6 @@ const WhatsAppOrderManagement: React.FC = () => {
     updateOrderStatus(currentOrder.id, 'approved', price);
   };
   
-  // Get status badge color
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
@@ -467,3 +479,4 @@ const WhatsAppOrderManagement: React.FC = () => {
 };
 
 export default WhatsAppOrderManagement;
+
