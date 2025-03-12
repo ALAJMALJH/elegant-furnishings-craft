@@ -93,7 +93,18 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
       
       if (error) throw error;
       
-      setTransactions(data || []);
+      // Cast the transaction_type to ensure it matches our TransactionType type
+      const typedTransactions: InventoryTransaction[] = data?.map(item => ({
+        id: item.id,
+        product_id: item.product_id,
+        warehouse_id: item.warehouse_id,
+        quantity_change: item.quantity_change,
+        transaction_type: item.transaction_type as TransactionType,
+        notes: item.notes,
+        created_at: item.created_at
+      })) || [];
+      
+      setTransactions(typedTransactions);
     } catch (error) {
       console.error('Error fetching transactions:', error);
     }
