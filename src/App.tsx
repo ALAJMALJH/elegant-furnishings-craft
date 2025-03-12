@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import ProtectedRoute from '@/components/Auth/ProtectedRoute';
 
@@ -57,7 +57,7 @@ const App: React.FC = () => {
   useAdminSetup();
   
   return (
-    <Router>
+    <>
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Index />} />
@@ -94,7 +94,7 @@ const App: React.FC = () => {
       </Routes>
       
       <Toaster />
-    </Router>
+    </>
   );
 };
 
