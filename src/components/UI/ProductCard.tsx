@@ -1,7 +1,7 @@
-
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Heart, ShoppingCart, Eye } from "lucide-react";
+import { useCart } from '../Cart/CartContext';
 
 interface ProductCardProps {
   id: string;
@@ -25,8 +25,18 @@ const ProductCard: React.FC<ProductCardProps> = ({
   delay = 0,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-
+  const { addToCart } = useCart();
+  
   const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+  
+  const handleAddToCart = () => {
+    addToCart({
+      id,
+      name,
+      price,
+      image_url: image,
+    });
+  };
 
   return (
     <div 
@@ -100,7 +110,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
           )}
         </div>
         
-        <button className="mt-4 w-full py-2.5 bg-furniture-dark text-white flex items-center justify-center rounded hover:bg-furniture-accent hover:text-furniture-dark transition-colors duration-300">
+        <button 
+          onClick={handleAddToCart}
+          className="mt-4 w-full py-2.5 bg-furniture-dark text-white flex items-center justify-center rounded hover:bg-furniture-accent hover:text-furniture-dark transition-colors duration-300"
+        >
           <ShoppingCart size={18} className="mr-2" />
           Add to Cart
         </button>

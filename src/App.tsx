@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -20,6 +19,8 @@ import AboutUs from "./pages/AboutUs";
 import ShopAll from "./pages/ShopAll";
 import BlogInspiration from "./pages/BlogInspiration";
 import BlogPost from "./pages/BlogPost";
+import CartPage from "./components/Shopping/CartPage";
+import { CartProvider } from "./components/Shopping/CartContext";
 
 // Import admin pages
 import Auth from "./pages/Auth";
@@ -47,45 +48,48 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/category/living-room" element={<CategoryLivingRoom />} />
-          <Route path="/category/bedroom" element={<CategoryBedroom />} />
-          <Route path="/category/dining" element={<CategoryDining />} />
-          <Route path="/category/office" element={<CategoryOffice />} />
-          <Route path="/category/outdoor" element={<CategoryOutdoor />} />
-          <Route path="/custom-furniture" element={<CustomFurniture />} />
-          <Route path="/bestsellers" element={<Bestsellers />} />
-          <Route path="/offers" element={<Offers />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/about-us" element={<AboutUs />} />
-          <Route path="/shop" element={<ShopAll />} />
-          <Route path="/blog" element={<BlogInspiration />} />
-          <Route path="/blog/:id" element={<BlogPost />} />
-          
-          {/* Auth route */}
-          <Route path="/auth" element={<Auth />} />
-          
-          {/* Protected admin routes */}
-          <Route path="/admin" element={<ProtectedRoute />}>
-            <Route element={<AdminLayout />}>
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="products" element={<Products />} />
-              <Route path="sales" element={<Sales />} />
-              <Route path="customers" element={<Customers />} />
-              <Route path="analytics" element={<Analytics />} />
-              <Route path="discounts" element={<Discounts />} />
-              <Route path="settings" element={<Settings />} />
+      <CartProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/category/living-room" element={<CategoryLivingRoom />} />
+            <Route path="/category/bedroom" element={<CategoryBedroom />} />
+            <Route path="/category/dining" element={<CategoryDining />} />
+            <Route path="/category/office" element={<CategoryOffice />} />
+            <Route path="/category/outdoor" element={<CategoryOutdoor />} />
+            <Route path="/custom-furniture" element={<CustomFurniture />} />
+            <Route path="/bestsellers" element={<Bestsellers />} />
+            <Route path="/offers" element={<Offers />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/about-us" element={<AboutUs />} />
+            <Route path="/shop" element={<ShopAll />} />
+            <Route path="/blog" element={<BlogInspiration />} />
+            <Route path="/blog/:id" element={<BlogPost />} />
+            <Route path="/cart" element={<CartPage />} />
+            
+            {/* Auth route */}
+            <Route path="/auth" element={<Auth />} />
+            
+            {/* Protected admin routes */}
+            <Route path="/admin" element={<ProtectedRoute />}>
+              <Route element={<AdminLayout />}>
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="products" element={<Products />} />
+                <Route path="sales" element={<Sales />} />
+                <Route path="customers" element={<Customers />} />
+                <Route path="analytics" element={<Analytics />} />
+                <Route path="discounts" element={<Discounts />} />
+                <Route path="settings" element={<Settings />} />
+              </Route>
             </Route>
-          </Route>
-          
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        <ChatBox />
-      </BrowserRouter>
+            
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <ChatBox />
+        </BrowserRouter>
+      </CartProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
