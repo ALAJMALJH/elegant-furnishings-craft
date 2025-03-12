@@ -73,6 +73,15 @@ const enableRealtimeForTables = async () => {
       }, (payload) => console.log('Cart change received:', payload))
       .subscribe();
       
+    // Enable for product_collections table
+    await supabase.channel('product-collections-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'product_collections'
+      }, (payload) => console.log('Product collection change received:', payload))
+      .subscribe();
+      
     console.log('Realtime subscriptions enabled for tables');
   } catch (error) {
     console.error('Error enabling realtime subscriptions:', error);

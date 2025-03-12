@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
@@ -18,6 +19,14 @@ export interface Product {
   is_featured: boolean;
   is_new_arrival: boolean;
   is_on_sale: boolean;
+  collections?: string[];
+}
+
+export interface ProductCollection {
+  id: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
 }
 
 interface ProductSyncContextType {
@@ -27,9 +36,11 @@ interface ProductSyncContextType {
   newArrivals: Product[];
   onSaleProducts: Product[];
   categories: Map<string, { count: number; image?: string }>;
+  collections: ProductCollection[];
   isLoading: boolean;
   error: Error | null;
   refreshProducts: () => Promise<void>;
+  refreshCollections: () => Promise<void>;
 }
 
 // Create context
@@ -47,6 +58,7 @@ export const useProductSync = () => {
 // Provider component
 export const ProductSyncProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [collections, setCollections] = useState<ProductCollection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
@@ -83,12 +95,41 @@ export const ProductSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
+  // Fetch collections from Supabase
+  const fetchCollections = async () => {
+    try {
+      console.log('[ProductSyncContext] Fetching collections...');
+      
+      const { data, error } = await supabase
+        .from('product_collections')
+        .select('*')
+        .order('name', { ascending: true });
+      
+      if (error) {
+        throw new Error(`Error fetching collections: ${error.message}`);
+      }
+
+      console.log('[ProductSyncContext] Collections fetched:', data?.length || 0);
+      setCollections(data || []);
+    } catch (err) {
+      console.error('[ProductSyncContext] Error fetching collections:', err);
+      toast({
+        title: "Error loading collections",
+        description: "Unable to load product collections. Please try again later.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Set up real-time subscription to products table
   useRealtimeSubscription(
-    [{ table: 'products', event: '*' }],
+    [
+      { table: 'products', event: '*' },
+      { table: 'product_collections', event: '*' }
+    ],
     {
       products: (payload) => {
-        console.log('[ProductSyncContext] Real-time update received:', payload);
+        console.log('[ProductSyncContext] Real-time product update received:', payload);
         
         // Handle different types of changes
         if (payload.eventType === 'INSERT') {
@@ -117,6 +158,50 @@ export const ProductSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
             duration: 3000,
           });
         }
+      },
+      product_collections: (payload) => {
+        console.log('[ProductSyncContext] Real-time collection update received:', payload);
+        
+        // Handle different types of changes for collections
+        if (payload.eventType === 'INSERT') {
+          setCollections(prev => [...prev, payload.new as ProductCollection]);
+          toast({
+            title: "New collection added",
+            description: `${payload.new.name} collection has been created.`,
+            duration: 3000,
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          setCollections(prev => 
+            prev.map(c => c.id === payload.new.id ? (payload.new as ProductCollection) : c)
+          );
+          toast({
+            title: "Collection updated",
+            description: `${payload.new.name} collection has been updated.`,
+            duration: 3000,
+          });
+        } else if (payload.eventType === 'DELETE') {
+          setCollections(prev => 
+            prev.filter(c => c.id !== payload.old.id)
+          );
+          toast({
+            title: "Collection removed",
+            description: "A collection has been removed from the catalog.",
+            duration: 3000,
+          });
+          
+          // Also update products that might have references to this collection
+          setProducts(prev => 
+            prev.map(product => {
+              if (product.collections?.includes(payload.old.id)) {
+                return {
+                  ...product,
+                  collections: product.collections.filter(id => id !== payload.old.id)
+                };
+              }
+              return product;
+            })
+          );
+        }
       }
     },
     false, // Disable toast in useRealtimeSubscription since we're handling them manually above
@@ -126,11 +211,13 @@ export const ProductSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Initial data load
   useEffect(() => {
     fetchProducts();
+    fetchCollections();
     
     // Refresh products every 5 minutes as a fallback
     const refreshInterval = setInterval(() => {
       console.log('[ProductSyncContext] Performing scheduled refresh');
       fetchProducts();
+      fetchCollections();
     }, 5 * 60 * 1000);
     
     return () => clearInterval(refreshInterval);
@@ -162,9 +249,11 @@ export const ProductSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
     newArrivals,
     onSaleProducts,
     categories,
+    collections,
     isLoading,
     error,
     refreshProducts: fetchProducts,
+    refreshCollections: fetchCollections,
   };
 
   return (
