@@ -136,11 +136,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const generateWhatsAppLink = () => {
     const baseUrl = 'https://wa.me/971559143341'; // WhatsApp business number
+    const cartUrl = `${window.location.origin}/cart`;
     const items = state.items.map(item => 
       `• ${item.name} (${item.quantity}x) - AED ${(item.price * item.quantity).toFixed(2)}`
     ).join('\n');
     
-    const message = `New Order Request:\n\n${items}\n\nTotal: AED ${state.total.toFixed(2)}`;
+    const message = `New Order Request:\n\nCart Link: ${cartUrl}\n\n${items}\n\nTotal: AED ${state.total.toFixed(2)}`;
     
     return `${baseUrl}?text=${encodeURIComponent(message)}`;
   };
