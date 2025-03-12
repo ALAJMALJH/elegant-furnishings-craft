@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
@@ -19,9 +19,15 @@ interface DiscountListProps {
   discounts: DiscountCode[];
   searchTerm: string;
   filterStatus: string;
+  filterCategory?: string;
 }
 
-const DiscountList: React.FC<DiscountListProps> = ({ discounts, searchTerm, filterStatus }) => {
+const DiscountList: React.FC<DiscountListProps> = ({ 
+  discounts, 
+  searchTerm, 
+  filterStatus,
+  filterCategory = 'all'
+}) => {
   const queryClient = useQueryClient();
 
   const deleteDiscount = useMutation({
@@ -74,12 +80,15 @@ const DiscountList: React.FC<DiscountListProps> = ({ discounts, searchTerm, filt
     }
   });
 
-  // Filter discounts based on search and status
+  // Filter discounts based on search, status, and category
   const filteredDiscounts = discounts?.filter(discount => {
     const matchesSearch = discount.code.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' ? true : 
       filterStatus === 'active' ? discount.is_active : !discount.is_active;
-    return matchesSearch && matchesStatus;
+    const matchesCategory = filterCategory === 'all' ? true :
+      discount.applies_to.includes(filterCategory) || discount.applies_to.includes('all');
+    
+    return matchesSearch && matchesStatus && matchesCategory;
   }) || [];
 
   return (

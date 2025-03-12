@@ -14,3 +14,14 @@ export interface DiscountCode {
   created_at: string;
   updated_at: string;
 }
+
+export type DiscountFormData = Omit<DiscountCode, 'id' | 'created_at' | 'updated_at' | 'usage_count'> & {
+  id?: string;
+  usage_count?: number;
+};
+
+export interface DiscountStats {
+  active: number;
+  totalRedemptions: number;
+  revenue: number;
+}

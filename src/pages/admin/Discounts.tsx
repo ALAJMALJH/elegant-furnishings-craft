@@ -8,10 +8,10 @@ import DiscountList from '@/components/Admin/Discounts/DiscountList';
 import DiscountForm from '@/components/Admin/Discounts/DiscountForm';
 import DiscountAnalytics from '@/components/Admin/Discounts/DiscountAnalytics';
 import DiscountSearch from '@/components/Admin/Discounts/DiscountSearch';
-import { DiscountCode } from '@/components/Admin/Discounts/types';
+import { DiscountCode, DiscountStats } from '@/components/Admin/Discounts/types';
 
 // Data for analytics section
-const discountStats = {
+const discountStats: DiscountStats = {
   active: 3,
   totalRedemptions: 1247,
   revenue: 125680
@@ -20,6 +20,7 @@ const discountStats = {
 const Discounts = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
 
   const { data: discounts, isLoading } = useQuery({
     queryKey: ['discounts'],
@@ -61,6 +62,8 @@ const Discounts = () => {
               setSearchTerm={setSearchTerm}
               filterStatus={filterStatus}
               setFilterStatus={setFilterStatus}
+              filterCategory={filterCategory}
+              setFilterCategory={setFilterCategory}
             />
             
             <DiscountForm />
@@ -70,6 +73,7 @@ const Discounts = () => {
             discounts={discounts || []}
             searchTerm={searchTerm}
             filterStatus={filterStatus}
+            filterCategory={filterCategory}
           />
         </TabsContent>
         
