@@ -45,6 +45,19 @@ export interface InventoryTransaction {
   created_by?: string;
 }
 
+// Warehouse interface definition
+export interface Warehouse {
+  id: string;
+  name: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Discount code interface
 export interface DiscountCode {
   id: string;
@@ -60,4 +73,11 @@ export interface DiscountCode {
   applies_to: string[];
   created_at: string;
   updated_at: string;
+}
+
+// Discount statistics interface
+export interface DiscountStats {
+  active: number;
+  totalRedemptions: number;
+  revenue: number;
 }
