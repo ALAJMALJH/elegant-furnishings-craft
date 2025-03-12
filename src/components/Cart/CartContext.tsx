@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -116,7 +117,8 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
       return newState;
       
     case 'SYNC_CART':
-      if (action.payload.lastUpdated > state.lastUpdated) {
+      // Only sync carts if they have the same ID to prevent cross-user cart contamination
+      if (action.payload.id === state.id && action.payload.lastUpdated > state.lastUpdated) {
         return action.payload;
       }
       return state;
@@ -129,6 +131,22 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [clientIdentifier, setClientIdentifier] = useState<string>('');
+  
+  // Generate a consistent client identifier
+  useEffect(() => {
+    // Try to get existing client ID from localStorage
+    const existingClientId = localStorage.getItem('furniture_client_id');
+    
+    if (existingClientId) {
+      setClientIdentifier(existingClientId);
+    } else {
+      // Generate a new client ID if none exists
+      const newClientId = uuidv4();
+      localStorage.setItem('furniture_client_id', newClientId);
+      setClientIdentifier(newClientId);
+    }
+  }, []);
   
   useEffect(() => {
     const checkAuth = async () => {
@@ -158,11 +176,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [state, dispatch] = useReducer(cartReducer, initialCartState);
   
   useEffect(() => {
+    // Don't initialize cart until we have a client identifier
+    if (!clientIdentifier) return;
+    
     const initializeCart = async () => {
       setIsLoading(true);
       
       try {
-        const localCart = localStorage.getItem('cart');
+        const cartStorageKey = `cart_${clientIdentifier}`;
+        const localCart = localStorage.getItem(cartStorageKey);
         let cartState: CartState | null = null;
         
         if (localCart) {
@@ -181,6 +203,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         
         if (userId) {
+          // For logged in users, use their user ID to find their cart
           const { data, error } = await supabase
             .from('carts')
             .select('*')
@@ -214,6 +237,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 cart_data: cartState as unknown as Json
               });
           }
+        } else {
+          // For non-logged in users, use their client ID to find their cart
+          const { data, error } = await supabase
+            .from('carts')
+            .select('*')
+            .eq('cart_id', cartState.id)
+            .maybeSingle();
+            
+          if (error) {
+            console.error('Error fetching cart from database:', error);
+          }
+          
+          if (data && data.cart_data) {
+            const dbCartData = data.cart_data as unknown as CartState;
+            
+            if (!cartState.lastUpdated || dbCartData.lastUpdated >= cartState.lastUpdated) {
+              cartState = dbCartData;
+            }
+          }
         }
         
         dispatch({ type: 'INIT_CART', payload: cartState });
@@ -230,17 +272,27 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     
     initializeCart();
-  }, [userId]);
+  }, [userId, clientIdentifier]);
   
+  // Only subscribe to realtime updates for the current cart
   useRealtimeSubscription(
-    userId ? [
-      { table: 'carts', event: 'UPDATE', filter: 'user_id=eq.?', filterValues: [userId] }
+    userId && state.id ? [
+      { 
+        table: 'carts', 
+        event: 'UPDATE', 
+        filter: 'user_id=eq.?', 
+        filterValues: [userId] 
+      }
     ] : [],
     {
       carts: (payload) => {
         if (payload.new && payload.new.cart_data && payload.new.user_id === userId) {
-          const cartData = payload.new.cart_data as CartState;
-          dispatch({ type: 'SYNC_CART', payload: cartData });
+          const cartData = payload.new.cart_data as unknown as CartState;
+          
+          // Only sync if this is the same cart ID as the current one
+          if (cartData.id === state.id) {
+            dispatch({ type: 'SYNC_CART', payload: cartData });
+          }
         }
       }
     },
@@ -248,28 +300,40 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
   
   useEffect(() => {
-    if (!isLoading && state.id) {
-      localStorage.setItem('cart', JSON.stringify(state));
-      
-      if (userId) {
-        const saveCart = async () => {
-          try {
-            await supabase
-              .from('carts')
-              .upsert({
-                user_id: userId,
-                cart_id: state.id,
-                cart_data: state as unknown as Json
-              });
-          } catch (error) {
-            console.error('Error saving cart to database:', error);
-          }
-        };
-        
-        saveCart();
+    // Don't save cart until we have a client identifier
+    if (!clientIdentifier || !state.id || isLoading) return;
+    
+    const cartStorageKey = `cart_${clientIdentifier}`;
+    localStorage.setItem(cartStorageKey, JSON.stringify(state));
+    
+    const saveCart = async () => {
+      try {
+        if (userId) {
+          // For logged in users, use their user ID
+          await supabase
+            .from('carts')
+            .upsert({
+              user_id: userId,
+              cart_id: state.id,
+              cart_data: state as unknown as Json
+            });
+        } else {
+          // For non-logged in users, just use the cart ID
+          await supabase
+            .from('carts')
+            .upsert({
+              user_id: null,
+              cart_id: state.id,
+              cart_data: state as unknown as Json
+            });
+        }
+      } catch (error) {
+        console.error('Error saving cart to database:', error);
       }
-    }
-  }, [state, userId, isLoading]);
+    };
+    
+    saveCart();
+  }, [state, userId, isLoading, clientIdentifier]);
   
   const addToCart = (item: Omit<CartItem, 'quantity'>) => {
     dispatch({ type: 'ADD_ITEM', payload: { ...item, quantity: 1 } });
@@ -288,11 +352,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   const updateQuantity = (id: string, quantity: number) => {
-    dispatch({ type: 'UPDATE_QUANTITY', payload: { id, quantity } });
+    if (quantity === 0) {
+      removeFromCart(id);
+    } else {
+      dispatch({ type: 'UPDATE_QUANTITY', payload: { id, quantity } });
+    }
   };
   
   const clearCart = () => {
     dispatch({ type: 'CLEAR_CART' });
+    toast({
+      title: "Cart cleared",
+      description: "All items have been removed from your cart.",
+    });
   };
   
   const generateWhatsAppLink = () => {
@@ -302,7 +374,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       `• ${item.name} (${item.quantity}x) - AED ${(item.price * item.quantity).toFixed(2)}`
     ).join('\n');
     
-    const message = `New Order Request:\n\nCart Link: ${cartUrl}\n\n${items}\n\nTotal: AED ${state.total.toFixed(2)}`;
+    const message = `New Order Request:\n\nCart ID: ${state.id}\nClient ID: ${clientIdentifier}\n\nCart Link: ${cartUrl}\n\n${items}\n\nTotal: AED ${state.total.toFixed(2)}`;
     
     return `${baseUrl}?text=${encodeURIComponent(message)}`;
   };
