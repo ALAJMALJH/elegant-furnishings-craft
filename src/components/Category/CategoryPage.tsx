@@ -41,7 +41,7 @@ export interface Review {
 }
 
 export interface BlogPost {
-  id: number;
+  id: string; // Changed from number to string
   title: string;
   excerpt: string;
   image: string;

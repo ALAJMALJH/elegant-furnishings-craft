@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import Navbar from "../components/Layout/Navbar";
 import Footer from "../components/Layout/Footer";
@@ -9,7 +8,7 @@ import { Link } from "react-router-dom";
 // Sample blog post data
 const blogPosts = [
   {
-    id: 1,
+    id: "1",
     title: "Top 5 Sofa Designs for Modern Homes",
     excerpt:
       "Discover the most stylish and comfortable sofa designs that will transform your living space into a modern haven.",
@@ -20,7 +19,7 @@ const blogPosts = [
     content: "Full article content here...",
   },
   {
-    id: 2,
+    id: "2",
     title: "How to Maintain Wooden Furniture",
     excerpt:
       "Learn the essential care tips and techniques to keep your wooden furniture looking beautiful for generations.",
@@ -31,7 +30,7 @@ const blogPosts = [
     content: "Full article content here...",
   },
   {
-    id: 3,
+    id: "3",
     title: "Latest Furniture Trends in 2023",
     excerpt:
       "Stay ahead of the curve with our guide to the hottest furniture trends that are dominating interior design this year.",
@@ -42,7 +41,7 @@ const blogPosts = [
     content: "Full article content here...",
   },
   {
-    id: 4,
+    id: "4",
     title: "Small Space Solutions: Furniture for Apartments",
     excerpt:
       "Maximize your small living space with these clever furniture choices and arrangement tips.",
@@ -53,7 +52,7 @@ const blogPosts = [
     content: "Full article content here...",
   },
   {
-    id: 5,
+    id: "5",
     title: "The Art of Mixing Modern and Vintage Furniture",
     excerpt:
       "Create a unique interior by combining contemporary pieces with vintage finds for a space full of character.",
@@ -64,7 +63,7 @@ const blogPosts = [
     content: "Full article content here...",
   },
   {
-    id: 6,
+    id: "6",
     title: "Creating the Perfect Home Office Setup",
     excerpt:
       "Design a productive and comfortable workspace with the right furniture and accessories.",
@@ -75,7 +74,7 @@ const blogPosts = [
     content: "Full article content here...",
   },
   {
-    id: 7,
+    id: "7",
     title: "Sustainable Furniture: Eco-Friendly Choices for Your Home",
     excerpt:
       "Make environmentally conscious decisions with our guide to sustainable furniture materials and brands.",
@@ -86,7 +85,7 @@ const blogPosts = [
     content: "Full article content here...",
   },
   {
-    id: 8,
+    id: "8",
     title: "Color Psychology in Furniture Selection",
     excerpt:
       "Understand how different colors affect mood and how to use this knowledge when choosing furniture.",
@@ -97,7 +96,7 @@ const blogPosts = [
     content: "Full article content here...",
   },
   {
-    id: 9,
+    id: "9",
     title: "Customer Story: A Complete Home Transformation",
     excerpt:
       "See how the Ahmadi family transformed their home with custom Al Ajmal furniture pieces.",
@@ -490,3 +489,4 @@ const BlogInspiration = () => {
 };
 
 export default BlogInspiration;
+
