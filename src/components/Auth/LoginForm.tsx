@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { 
   Card, 
   CardContent, 
@@ -18,15 +18,13 @@ import { Lock, UserCircle2 } from 'lucide-react';
 
 // Demo admin accounts with roles
 const DEMO_ADMINS = [
-  { username: 'admin', password: 'admin123', role: 'admin', displayName: 'Admin User', email: 'admin@ajmalfurniture.com' },
-  { username: 'ceo', password: 'ceo123', role: 'ceo', displayName: 'CEO User', email: 'ceo@ajmalfurniture.com' },
-  { username: 'manager', password: 'manager123', role: 'manager', displayName: 'Store Manager', email: 'manager@ajmalfurniture.com' },
-  { username: 'support', password: 'support123', role: 'support', displayName: 'Support Team', email: 'support@ajmalfurniture.com' },
+  { username: 'admin', password: 'admin123', role: 'super_admin', displayName: 'Super Admin' },
+  { username: 'manager', password: 'manager123', role: 'manager', displayName: 'Store Manager' },
+  { username: 'support', password: 'support123', role: 'support', displayName: 'Support Team' },
 ];
 
 const LoginForm = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -78,7 +76,6 @@ const LoginForm = () => {
         id: `demo-${admin.username}`,
         username: admin.username,
         displayName: admin.displayName,
-        email: admin.email,
         role: admin.role,
         isAuthenticated: true,
         lastLogin: new Date().toISOString(),
@@ -90,9 +87,8 @@ const LoginForm = () => {
         description: `Welcome back, ${admin.displayName}!`,
       });
       
-      // Navigate to the previous location or dashboard
-      const from = location.state?.from?.pathname || "/admin/dashboard";
-      navigate(from, { replace: true });
+      // Navigate to dashboard
+      navigate('/admin/dashboard');
       
     } catch (err: any) {
       setError(err.message);
@@ -162,7 +158,7 @@ const LoginForm = () => {
         </form>
         
         <div className="mt-6 border-t pt-4">
-          <p className="text-sm text-muted-foreground mb-2">Demo Accounts:</p>
+          <p className="text-sm text-muted-foreground mb-2">Demo Credentials:</p>
           <div className="grid gap-2">
             {DEMO_ADMINS.map((admin) => (
               <div key={admin.username} className="flex items-center justify-between text-xs">

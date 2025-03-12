@@ -1,22 +1,20 @@
 
-import React, { useState, useEffect } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import LoginForm from '@/components/Auth/LoginForm';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Shield } from "lucide-react";
 
 const Auth = () => {
   const [showSecurityAlert, setShowSecurityAlert] = useState(true);
-  const location = useLocation();
   
   // Check if user is already logged in
   const userString = localStorage.getItem('user');
   const user = userString ? JSON.parse(userString) : null;
   
-  // If user is authenticated, redirect to admin dashboard or the page they were trying to access
+  // If user is authenticated, redirect to admin dashboard
   if (user && user.isAuthenticated) {
-    const from = location.state?.from?.pathname || "/admin/dashboard";
-    return <Navigate to={from} replace />;
+    return <Navigate to="/admin/dashboard" replace />;
   }
 
   return (

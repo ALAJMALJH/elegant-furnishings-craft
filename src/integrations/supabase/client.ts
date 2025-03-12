@@ -25,20 +25,12 @@ export const supabase = createClient<Database>(
   }
 );
 
-// Define comprehensive role mappings
+// Maps frontend role to database role
 export const mapRoleToDatabase = (frontendRole: string): string => {
   const roleMap: Record<string, string> = {
     'super_admin': 'admin',
-    'ceo': 'admin',
-    'cto': 'admin',
-    'admin': 'admin',
     'manager': 'moderator',
-    'marketing': 'moderator',
-    'operations': 'moderator',
-    'sales': 'user',
-    'support': 'user',
-    'hr': 'user',
-    'finance': 'user'
+    'support': 'user'
   };
   return roleMap[frontendRole] || 'user';
 };
@@ -76,133 +68,6 @@ export const canManageProducts = async (): Promise<boolean> => {
   } catch (error) {
     console.error('Error checking product management permissions:', error);
     return false;
-  }
-};
-
-// Check if user can access financial data
-export const canAccessFinancials = async (): Promise<boolean> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !user.email) return false;
-    
-    const financialAccessRoles = [
-      'ceo@ajmalfurniture.com',
-      'finance@ajmalfurniture.com'
-    ];
-    
-    return financialAccessRoles.includes(user.email);
-  } catch (error) {
-    console.error('Error checking financial access permissions:', error);
-    return false;
-  }
-};
-
-// Check if user can manage users and roles
-export const canManageUsers = async (): Promise<boolean> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !user.email) return false;
-    
-    const userManagementRoles = [
-      'ceo@ajmalfurniture.com',
-      'admin@ajmalfurniture.com'
-    ];
-    
-    return userManagementRoles.includes(user.email);
-  } catch (error) {
-    console.error('Error checking user management permissions:', error);
-    return false;
-  }
-};
-
-// Check if user can manage inventory
-export const canManageInventory = async (): Promise<boolean> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !user.email) return false;
-    
-    const inventoryManagementRoles = [
-      'ceo@ajmalfurniture.com',
-      'cto@ajmalfurniture.com',
-      'manager@ajmalfurniture.com',
-      'operations@ajmalfurniture.com'
-    ];
-    
-    return inventoryManagementRoles.includes(user.email) || await canManageProducts();
-  } catch (error) {
-    console.error('Error checking inventory management permissions:', error);
-    return false;
-  }
-};
-
-// Check if user can access customer data
-export const canAccessCustomerData = async (): Promise<boolean> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !user.email) return false;
-    
-    const customerDataAccessRoles = [
-      'ceo@ajmalfurniture.com',
-      'sales@ajmalfurniture.com',
-      'support@ajmalfurniture.com',
-      'manager@ajmalfurniture.com'
-    ];
-    
-    return customerDataAccessRoles.includes(user.email) || await checkUserDatabaseRole('admin');
-  } catch (error) {
-    console.error('Error checking customer data access permissions:', error);
-    return false;
-  }
-};
-
-// Check if user can manage marketing and content
-export const canManageMarketing = async (): Promise<boolean> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !user.email) return false;
-    
-    const marketingRoles = [
-      'ceo@ajmalfurniture.com',
-      'marketing@ajmalfurniture.com'
-    ];
-    
-    return marketingRoles.includes(user.email) || await checkUserDatabaseRole('admin');
-  } catch (error) {
-    console.error('Error checking marketing permissions:', error);
-    return false;
-  }
-};
-
-// Function to get the specific user role based on email
-export const getUserRoleFromEmail = async (): Promise<string> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !user.email) return 'guest';
-    
-    const email = user.email.toLowerCase();
-    
-    // Map email to role
-    if (email === 'ceo@ajmalfurniture.com') return 'ceo';
-    if (email === 'cto@ajmalfurniture.com') return 'cto';
-    if (email === 'manager@ajmalfurniture.com') return 'manager';
-    if (email === 'sales@ajmalfurniture.com') return 'sales';
-    if (email === 'support@ajmalfurniture.com') return 'support';
-    if (email === 'hr@ajmalfurniture.com') return 'hr';
-    if (email === 'marketing@ajmalfurniture.com') return 'marketing';
-    if (email === 'finance@ajmalfurniture.com') return 'finance';
-    if (email === 'operations@ajmalfurniture.com') return 'operations';
-    if (email === 'admin@ajmalfurniture.com') return 'admin';
-    
-    // Default to user role if not a special email
-    const isAdmin = await checkUserDatabaseRole('admin');
-    const isModerator = await checkUserDatabaseRole('moderator');
-    
-    if (isAdmin) return 'admin';
-    if (isModerator) return 'moderator';
-    return 'user';
-  } catch (error) {
-    console.error('Error getting user role from email:', error);
-    return 'guest';
   }
 };
 
