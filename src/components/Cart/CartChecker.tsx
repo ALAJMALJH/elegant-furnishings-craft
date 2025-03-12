@@ -48,6 +48,8 @@ const CartChecker: React.FC = () => {
   const onSubmit = async (data: CartCheckerForm) => {
     setIsLoading(true);
     try {
+      console.log("Searching for cart with ID:", data.cartId);
+      
       // First try with exact cart_id match
       let { data: cartRecord, error } = await supabase
         .from('carts')
@@ -59,8 +61,11 @@ const CartChecker: React.FC = () => {
         console.error('Error fetching cart by cart_id:', error);
       }
       
+      console.log("First query result:", cartRecord);
+      
       // If no results with cart_id, try to find cart where cart_data contains the cart ID
       if (!cartRecord) {
+        console.log("No exact match found, trying JSON contains search");
         const { data: jsonContainsResults, error: jsonError } = await supabase
           .from('carts')
           .select('cart_data')
@@ -71,31 +76,39 @@ const CartChecker: React.FC = () => {
           console.error('Error fetching cart by JSON contains:', jsonError);
         }
         
+        console.log("JSON contains search result:", jsonContainsResults);
+        
         if (jsonContainsResults) {
           cartRecord = jsonContainsResults;
         }
       }
       
       if (!cartRecord) {
+        console.log("No cart found with ID:", data.cartId);
         toast({
           title: "Cart not found",
           description: "No cart was found with the provided ID",
           variant: "destructive"
         });
         setCartData(null);
+        setIsLoading(false);
         return;
       }
+      
+      console.log("Cart record found:", cartRecord);
       
       // Cast the JSON data to CartState
       const cart = cartRecord.cart_data as unknown as CartState;
       
       if (!cart || !cart.items) {
+        console.error("Invalid cart data format:", cart);
         toast({
           title: "Invalid cart data",
           description: "The cart data is not in the expected format",
           variant: "destructive"
         });
         setCartData(null);
+        setIsLoading(false);
         return;
       }
       
