@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { FolderPlus, RefreshCw, Trash, Edit, Save, X, Image as ImageIcon } from 'lucide-react';
+import { FolderPlus, RefreshCw, Trash, Edit, Save, X, Upload, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { CardContent } from '@/components/ui/card';
@@ -37,6 +38,9 @@ export function ProductCollectionsManager({
     description: '',
     image_url: '',
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   
   // Fetch collections from Supabase
   const fetchCollections = async () => {
@@ -79,6 +83,8 @@ export function ProductCollectionsManager({
       description: '',
       image_url: '',
     });
+    setImageFile(null);
+    setImagePreview(null);
     setIsAddDialogOpen(true);
   };
   
@@ -90,7 +96,62 @@ export function ProductCollectionsManager({
       description: collection.description || '',
       image_url: collection.image_url || '',
     });
+    setImageFile(null);
+    setImagePreview(collection.image_url || null);
     setIsAddDialogOpen(true);
+  };
+
+  // Handle image upload to Storage bucket
+  const uploadImage = async (): Promise<string | null> => {
+    if (!imageFile) {
+      // If editing and there was already an image_url, return that
+      if (editingCollection?.image_url) {
+        return editingCollection.image_url;
+      }
+      return null;
+    }
+
+    try {
+      // Generate a unique filename with timestamp
+      const fileExt = imageFile.name.split('.').pop();
+      const fileName = `collection-images/${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+      
+      // Create the bucket if it doesn't exist
+      const { data: bucketData, error: bucketError } = await supabase.storage
+        .getBucket('product-images');
+        
+      if (bucketError && bucketError.message.includes('not found')) {
+        await supabase.storage.createBucket('product-images', {
+          public: true,
+          fileSizeLimit: 5242880, // 5MB
+        });
+      }
+
+      // Upload the file
+      const { data, error } = await supabase.storage
+        .from('product-images')
+        .upload(fileName, imageFile, {
+          upsert: true,
+          contentType: imageFile.type,
+        });
+
+      if (error) throw error;
+
+      // Get the public URL
+      const { data: publicUrlData } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(fileName);
+
+      return publicUrlData.publicUrl;
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to upload image. ' + error.message,
+        variant: 'destructive',
+      });
+      return null;
+    }
   };
   
   // Save collection
@@ -106,6 +167,9 @@ export function ProductCollectionsManager({
     
     setIsLoading(true);
     try {
+      // First, upload the image if there is one
+      const imageUrl = await uploadImage();
+      
       if (editingCollection) {
         // Update existing collection
         const { error } = await supabase
@@ -113,7 +177,7 @@ export function ProductCollectionsManager({
           .update({
             name: formData.name,
             description: formData.description || null,
-            image_url: formData.image_url || null,
+            image_url: imageUrl || formData.image_url || null,
           })
           .eq('id', editingCollection.id);
           
@@ -130,7 +194,7 @@ export function ProductCollectionsManager({
           .insert({
             name: formData.name,
             description: formData.description || null,
-            image_url: formData.image_url || null,
+            image_url: imageUrl || null,
           });
           
         if (error) throw error;
@@ -146,11 +210,20 @@ export function ProductCollectionsManager({
       setIsAddDialogOpen(false);
     } catch (error: any) {
       console.error('Error saving collection:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to save collection.',
-        variant: 'destructive',
-      });
+      
+      if (error.message?.includes('violates row-level security policy')) {
+        toast({
+          title: 'Permission Error',
+          description: 'You do not have permission to create or modify collections. Please contact your administrator.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: error.message || 'Failed to save collection.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -183,11 +256,20 @@ export function ProductCollectionsManager({
       });
     } catch (error: any) {
       console.error('Error deleting collection:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to delete collection.',
-        variant: 'destructive',
-      });
+      
+      if (error.message?.includes('violates row-level security policy')) {
+        toast({
+          title: 'Permission Error',
+          description: 'You do not have permission to delete collections. Please contact your administrator.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: error.message || 'Failed to delete collection.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -199,6 +281,63 @@ export function ProductCollectionsManager({
       onCollectionsChange(selectedCollections.filter(id => id !== collectionId));
     } else {
       onCollectionsChange([...selectedCollections, collectionId]);
+    }
+  };
+
+  // Handle file drop for image upload
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      handleImageChange(file);
+    }
+  };
+
+  const handleImageChange = (file: File) => {
+    // Check if the file is an image
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please upload an image file (JPG, PNG, etc.)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check file size (limit to 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Image size should be less than 5MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setImageFile(file);
+    
+    // Create a preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleImageChange(e.target.files[0]);
     }
   };
 
@@ -252,18 +391,32 @@ export function ProductCollectionsManager({
                           checked={selectedCollections.includes(collection.id)}
                           onCheckedChange={() => toggleCollection(collection.id)}
                         />
-                        <div>
-                          <Label 
-                            htmlFor={`collection-${collection.id}`}
-                            className="text-base font-medium cursor-pointer"
-                          >
-                            {collection.name}
-                          </Label>
-                          {collection.description && (
-                            <p className="text-xs text-muted-foreground line-clamp-1">
-                              {collection.description}
-                            </p>
+                        <div className="flex items-center gap-2">
+                          {collection.image_url && (
+                            <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0">
+                              <img 
+                                src={collection.image_url} 
+                                alt={collection.name} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = '/placeholder.svg';
+                                }}
+                              />
+                            </div>
                           )}
+                          <div>
+                            <Label 
+                              htmlFor={`collection-${collection.id}`}
+                              className="text-base font-medium cursor-pointer"
+                            >
+                              {collection.name}
+                            </Label>
+                            {collection.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-1">
+                                {collection.description}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="flex space-x-1">
@@ -323,25 +476,54 @@ export function ProductCollectionsManager({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="collection-image">Image URL</Label>
-              <Input
-                id="collection-image"
-                value={formData.image_url}
-                onChange={(e) => handleInputChange('image_url', e.target.value)}
-                placeholder="https://example.com/image.jpg"
-              />
-              {formData.image_url && (
-                <div className="mt-2 h-32 bg-muted rounded overflow-hidden">
-                  <img 
-                    src={formData.image_url} 
-                    alt="Preview" 
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/placeholder.svg';
-                    }}
-                  />
-                </div>
-              )}
+              <Label>Collection Image</Label>
+              <div 
+                className={`border-2 border-dashed rounded-md p-4 text-center cursor-pointer transition-colors ${isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/20'}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => document.getElementById('collection-image-input')?.click()}
+              >
+                {imagePreview ? (
+                  <div className="relative w-full">
+                    <div className="relative mx-auto h-40 max-w-xs overflow-hidden rounded-md">
+                      <img 
+                        src={imagePreview} 
+                        alt="Preview" 
+                        className="h-full w-full object-contain"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute right-2 top-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setImageFile(null);
+                          setImagePreview(null);
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-4">
+                    <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground mb-1">Drag and drop an image here</p>
+                    <p className="text-xs text-muted-foreground">or click to browse</p>
+                  </div>
+                )}
+                <input
+                  id="collection-image-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileInputChange}
+                  className="hidden"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Recommended: Square image (1:1 ratio), max 5MB
+              </p>
             </div>
           </div>
           
