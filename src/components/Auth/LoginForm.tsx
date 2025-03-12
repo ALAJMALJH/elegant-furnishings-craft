@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -6,21 +5,23 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/use-toast";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
+import { ROLES } from './ProtectedRoute';
 
 // Simulated admin users - in a real application, this would be in a secure database
 const ADMIN_USERS = [
-  { username: 'admin', password: 'admin123', role: 'admin' },
-  { username: 'manager', password: 'manager123', role: 'manager' },
-  { username: 'ceo@ajmalfurniture.com', password: 'Ceoajmal11CE@', role: 'ceo' },
-  { username: 'cto@ajmalfurniture.com', password: 'Ctoajmal11CT@', role: 'cto' },
-  { username: 'manager@ajmalfurniture.com', password: 'Managerajmal11MA@', role: 'manager' },
-  { username: 'sales@ajmalfurniture.com', password: 'Salesajmal11SA@', role: 'sales' },
-  { username: 'support@ajmalfurniture.com', password: 'Supportajmal11SU@', role: 'support' },
-  { username: 'hr@ajmalfurniture.com', password: 'Hrajmal11HR@', role: 'hr' },
-  { username: 'marketing@ajmalfurniture.com', password: 'Marketingajmal11MA@', role: 'marketing' },
-  { username: 'finance@ajmalfurniture.com', password: 'Financeajmal11FI@', role: 'finance' },
-  { username: 'operations@ajmalfurniture.com', password: 'Operationsajmal11OP@', role: 'operations' },
-  { username: 'admin@ajmalfurniture.com', password: 'Adminajmal11AD@', role: 'admin' }
+  { username: 'admin', password: 'admin123', role: ROLES.SUPER_ADMIN },
+  { username: 'manager', password: 'manager123', role: ROLES.MANAGER },
+  { username: 'support', password: 'support123', role: ROLES.SUPPORT },
+  { username: 'ceo@ajmalfurniture.com', password: 'Ceoajmal11CE@', role: ROLES.SUPER_ADMIN },
+  { username: 'cto@ajmalfurniture.com', password: 'Ctoajmal11CT@', role: ROLES.SUPER_ADMIN },
+  { username: 'manager@ajmalfurniture.com', password: 'Managerajmal11MA@', role: ROLES.MANAGER },
+  { username: 'sales@ajmalfurniture.com', password: 'Salesajmal11SA@', role: ROLES.MANAGER },
+  { username: 'support@ajmalfurniture.com', password: 'Supportajmal11SU@', role: ROLES.SUPPORT },
+  { username: 'hr@ajmalfurniture.com', password: 'Hrajmal11HR@', role: ROLES.MANAGER },
+  { username: 'marketing@ajmalfurniture.com', password: 'Marketingajmal11MA@', role: ROLES.MANAGER },
+  { username: 'finance@ajmalfurniture.com', password: 'Financeajmal11FI@', role: ROLES.MANAGER },
+  { username: 'operations@ajmalfurniture.com', password: 'Operationsajmal11OP@', role: ROLES.MANAGER },
+  { username: 'admin@ajmalfurniture.com', password: 'Adminajmal11AD@', role: ROLES.SUPER_ADMIN }
 ];
 
 const LoginForm = () => {
