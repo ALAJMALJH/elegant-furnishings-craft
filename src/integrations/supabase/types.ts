@@ -301,6 +301,54 @@ export type Database = {
         }
         Relationships: []
       }
+      discount_codes: {
+        Row: {
+          applies_to: string[] | null
+          code: string
+          created_at: string
+          end_date: string | null
+          id: string
+          is_active: boolean
+          min_purchase: number | null
+          start_date: string
+          type: string
+          updated_at: string
+          usage_count: number
+          usage_limit: number | null
+          value: number
+        }
+        Insert: {
+          applies_to?: string[] | null
+          code: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          min_purchase?: number | null
+          start_date?: string
+          type: string
+          updated_at?: string
+          usage_count?: number
+          usage_limit?: number | null
+          value: number
+        }
+        Update: {
+          applies_to?: string[] | null
+          code?: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          min_purchase?: number | null
+          start_date?: string
+          type?: string
+          updated_at?: string
+          usage_count?: number
+          usage_limit?: number | null
+          value?: number
+        }
+        Relationships: []
+      }
       faqs: {
         Row: {
           answer: string

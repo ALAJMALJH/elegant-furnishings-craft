@@ -1,33 +1,15 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/use-toast';
 import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+  Table, TableBody, TableCell, TableHead, 
+  TableHeader, TableRow 
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-  Plus, 
-  Calendar, 
-  Edit, 
-  Trash2, 
-  Search, 
-  CopyCheck,
-  Tag, 
-  Percent
-} from 'lucide-react';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle,
-  CardFooter
-} from '@/components/ui/card';
+import { Plus, Calendar, Edit, Trash2, Search, CopyCheck, Tag, Percent } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -38,151 +20,150 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 
-interface Discount {
+interface DiscountCode {
   id: string;
   code: string;
   type: 'percentage' | 'fixed';
   value: number;
-  startDate: Date;
-  endDate: Date | null;
-  minPurchase: number | null;
-  usageLimit: number | null;
-  usageCount: number;
-  isActive: boolean;
-  products: string[] | null; // null means all products
+  min_purchase: number | null;
+  start_date: string;
+  end_date: string | null;
+  usage_limit: number | null;
+  usage_count: number;
+  is_active: boolean;
+  applies_to: string[];
+  created_at: string;
+  updated_at: string;
 }
 
-// Mock discount data
-const mockDiscounts: Discount[] = [
-  {
-    id: '1',
-    code: 'SUMMER23',
-    type: 'percentage',
-    value: 20,
-    startDate: new Date('2023-06-01'),
-    endDate: new Date('2023-08-31'),
-    minPurchase: 50,
-    usageLimit: 500,
-    usageCount: 342,
-    isActive: true,
-    products: null
-  },
-  {
-    id: '2',
-    code: 'WELCOME10',
-    type: 'percentage',
-    value: 10,
-    startDate: new Date('2023-01-01'),
-    endDate: null, // No end date
-    minPurchase: null,
-    usageLimit: null,
-    usageCount: 827,
-    isActive: true,
-    products: null
-  },
-  {
-    id: '3',
-    code: 'FURNITURE50',
-    type: 'fixed',
-    value: 50,
-    startDate: new Date('2023-10-01'),
-    endDate: new Date('2023-11-30'),
-    minPurchase: 200,
-    usageLimit: 200,
-    usageCount: 78,
-    isActive: true,
-    products: ['Living Room', 'Bedroom']
-  },
-  {
-    id: '4',
-    code: 'BLACKFRIDAY',
-    type: 'percentage',
-    value: 30,
-    startDate: new Date('2023-11-24'),
-    endDate: new Date('2023-11-27'),
-    minPurchase: null,
-    usageLimit: 1000,
-    usageCount: 0,
-    isActive: false, // Not active yet
-    products: null
-  },
-];
-
-const mockDiscountStats = {
-  active: 3,
-  upcoming: 1,
-  expired: 2,
-  totalRedemptions: 1247,
-  mostPopular: 'WELCOME10',
-  revenue: 125680.45
-};
-
-const Discounts: React.FC = () => {
-  const [discounts, setDiscounts] = useState<Discount[]>(mockDiscounts);
+const Discounts = () => {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [newDiscount, setNewDiscount] = useState<Partial<Discount>>({
+  const [newDiscount, setNewDiscount] = useState<Partial<DiscountCode>>({
     type: 'percentage',
     value: 10,
-    startDate: new Date(),
-    isActive: true
+    is_active: true,
+    applies_to: ['all']
   });
-  const [startDate, setStartDate] = useState<Date | undefined>(new Date());
+  const [startDate, setStartDate] = useState<Date>(new Date());
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
-  const filteredDiscounts = discounts.filter(discount => {
-    // Apply search filter
-    const matchesSearch = discount.code.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // Apply status filter
-    let matchesStatus = true;
-    if (filterStatus === 'active') {
-      matchesStatus = discount.isActive;
-    } else if (filterStatus === 'inactive') {
-      matchesStatus = !discount.isActive;
+  const { data: discounts, isLoading } = useQuery({
+    queryKey: ['discounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('discount_codes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        toast({
+          title: 'Error fetching discounts',
+          description: error.message,
+          variant: 'destructive'
+        });
+        throw error;
+      }
+      return data as DiscountCode[];
     }
-    
-    return matchesSearch && matchesStatus;
+  });
+
+  const createDiscount = useMutation({
+    mutationFn: async (discount: Partial<DiscountCode>) => {
+      const { data, error } = await supabase
+        .from('discount_codes')
+        .insert([discount])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['discounts'] });
+      setCreateDialogOpen(false);
+      toast({
+        title: 'Discount created',
+        description: 'The discount code has been created successfully.'
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error creating discount',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+
+  const deleteDiscount = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('discount_codes')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['discounts'] });
+      toast({
+        title: 'Discount deleted',
+        description: 'The discount code has been deleted successfully.'
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error deleting discount',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+
+  const toggleStatus = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const { error } = await supabase
+        .from('discount_codes')
+        .update({ is_active: isActive })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['discounts'] });
+      toast({
+        title: 'Status updated',
+        description: 'The discount status has been updated successfully.'
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error updating status',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
   });
 
   const handleCreate = () => {
-    const id = Math.random().toString(36).substring(2, 9);
-    const discountToAdd: Discount = {
-      id,
-      code: newDiscount.code || 'CODE',
-      type: newDiscount.type || 'percentage',
-      value: newDiscount.value || 0,
-      startDate: startDate || new Date(),
-      endDate: endDate || null,
-      minPurchase: newDiscount.minPurchase || null,
-      usageLimit: newDiscount.usageLimit || null,
-      usageCount: 0,
-      isActive: newDiscount.isActive || false,
-      products: null
+    const discountToAdd = {
+      ...newDiscount,
+      start_date: startDate.toISOString(),
+      end_date: endDate?.toISOString() || null,
     };
     
-    setDiscounts([...discounts, discountToAdd]);
-    setCreateDialogOpen(false);
-    setNewDiscount({
-      type: 'percentage',
-      value: 10,
-      startDate: new Date(),
-      isActive: true
-    });
-    setStartDate(new Date());
-    setEndDate(undefined);
+    createDiscount.mutate(discountToAdd);
   };
 
-  const handleDeleteDiscount = (id: string) => {
-    setDiscounts(discounts.filter(discount => discount.id !== id));
-  };
-
-  const handleToggleStatus = (id: string) => {
-    setDiscounts(discounts.map(discount => 
-      discount.id === id ? { ...discount, isActive: !discount.isActive } : discount
-    ));
-  };
+  const filteredDiscounts = discounts?.filter(discount => {
+    const matchesSearch = discount.code.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'all' ? true : 
+      filterStatus === 'active' ? discount.is_active : !discount.is_active;
+    return matchesSearch && matchesStatus;
+  }) || [];
 
   return (
     <div className="space-y-6">
@@ -412,14 +393,14 @@ const Discounts: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            From: {format(discount.startDate, 'MMM d, yyyy')}
+                            From: {format(discount.start_date, 'MMM d, yyyy')}
                           </div>
-                          {discount.endDate && (
+                          {discount.end_date && (
                             <div className="text-sm text-muted-foreground">
-                              To: {format(discount.endDate, 'MMM d, yyyy')}
+                              To: {format(discount.end_date, 'MMM d, yyyy')}
                             </div>
                           )}
-                          {!discount.endDate && (
+                          {!discount.end_date && (
                             <div className="text-sm text-muted-foreground">
                               No end date
                             </div>
@@ -427,23 +408,23 @@ const Discounts: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            {discount.usageCount} uses
+                            {discount.usage_count} uses
                           </div>
-                          {discount.usageLimit && (
+                          {discount.usage_limit && (
                             <div className="text-xs text-muted-foreground">
-                              Limit: {discount.usageLimit}
+                              Limit: {discount.usage_limit}
                             </div>
                           )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center">
                             <Switch
-                              checked={discount.isActive}
-                              onCheckedChange={() => handleToggleStatus(discount.id)}
+                              checked={discount.is_active}
+                              onCheckedChange={() => toggleStatus.mutate({ id: discount.id, isActive: !discount.is_active })}
                               className="mr-2"
                             />
-                            <span className={discount.isActive ? "text-green-600" : "text-muted-foreground"}>
-                              {discount.isActive ? "Active" : "Inactive"}
+                            <span className={discount.is_active ? "text-green-600" : "text-muted-foreground"}>
+                              {discount.is_active ? "Active" : "Inactive"}
                             </span>
                           </div>
                         </TableCell>
@@ -454,7 +435,7 @@ const Discounts: React.FC = () => {
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            onClick={() => handleDeleteDiscount(discount.id)}
+                            onClick={() => deleteDiscount.mutate(discount.id)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
