@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Search, Edit, Trash, AlertTriangle, Package, X } from 'lucide-react';
@@ -157,21 +156,17 @@ const Products: React.FC = () => {
     fetchProducts();
   }, []);
   
-  // Filter products when search or category changes
   useEffect(() => {
     let filtered = [...products];
     
-    // Apply category filter
     if (categoryFilter !== 'all') {
       filtered = filtered.filter(product => product.category === categoryFilter);
     }
     
-    // Apply low stock filter
     if (showLowStock) {
       filtered = filtered.filter(product => product.stock_quantity < 5);
     }
     
-    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(product => 
@@ -189,7 +184,20 @@ const Products: React.FC = () => {
       try {
         const { data: newProduct, error } = await supabase
           .from('products')
-          .insert([data])
+          .insert({
+            name: data.name,
+            description: data.description,
+            price: data.price,
+            category: data.category,
+            image_url: data.image_url,
+            discount_price: data.discount_price || null,
+            subcategory: data.subcategory || null,
+            stock_quantity: data.stock_quantity,
+            is_bestseller: data.is_bestseller || false,
+            is_featured: data.is_featured || false,
+            is_new_arrival: data.is_new_arrival || false,
+            is_on_sale: data.is_on_sale || false,
+          })
           .select()
           .single();
           
@@ -222,12 +230,24 @@ const Products: React.FC = () => {
       try {
         const { error } = await supabase
           .from('products')
-          .update(data)
+          .update({
+            name: data.name,
+            description: data.description,
+            price: data.price,
+            category: data.category,
+            image_url: data.image_url,
+            discount_price: data.discount_price || null,
+            subcategory: data.subcategory || null,
+            stock_quantity: data.stock_quantity,
+            is_bestseller: data.is_bestseller || false,
+            is_featured: data.is_featured || false,
+            is_new_arrival: data.is_new_arrival || false,
+            is_on_sale: data.is_on_sale || false,
+          })
           .eq('id', currentProduct.id);
           
         if (error) throw error;
         
-        // Update local state
         setProducts(products.map(product => 
           product.id === currentProduct.id ? { ...product, ...data } : product
         ));
@@ -264,7 +284,6 @@ const Products: React.FC = () => {
         
       if (error) throw error;
       
-      // Update local state
       setProducts(products.filter(product => product.id !== productToDelete.id));
       
       setIsDeleteDialogOpen(false);
@@ -711,7 +730,6 @@ const Products: React.FC = () => {
         </Card>
       </div>
       
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

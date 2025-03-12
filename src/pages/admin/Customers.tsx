@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Mail, Phone, User, MessageSquare, Search } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,7 +22,7 @@ const MOCK_CUSTOMERS = [
     phone: '+971 50 123 4567',
     orders: 8,
     totalSpent: 12450,
-    status: 'active',
+    status: 'active' as const,
     lastOrder: '2023-07-15T08:30:00Z',
   },
   {
@@ -33,7 +32,7 @@ const MOCK_CUSTOMERS = [
     phone: '+971 55 987 6543',
     orders: 3,
     totalSpent: 4250,
-    status: 'active',
+    status: 'active' as const,
     lastOrder: '2023-08-02T14:45:00Z',
   },
   {
@@ -43,7 +42,7 @@ const MOCK_CUSTOMERS = [
     phone: '+971 54 555 7890',
     orders: 1,
     totalSpent: 1850,
-    status: 'new',
+    status: 'new' as const,
     lastOrder: '2023-08-10T11:20:00Z',
   },
   {
@@ -53,7 +52,7 @@ const MOCK_CUSTOMERS = [
     phone: '+971 52 444 3210',
     orders: 5,
     totalSpent: 7320,
-    status: 'active',
+    status: 'active' as const,
     lastOrder: '2023-07-28T09:15:00Z',
   },
   {
@@ -63,7 +62,7 @@ const MOCK_CUSTOMERS = [
     phone: '+971 56 222 1098',
     orders: 2,
     totalSpent: 3450,
-    status: 'inactive',
+    status: 'inactive' as const,
     lastOrder: '2023-06-20T16:30:00Z',
   },
 ];
