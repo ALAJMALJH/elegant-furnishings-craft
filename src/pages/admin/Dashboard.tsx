@@ -119,7 +119,7 @@ const Dashboard: React.FC = () => {
         <TabsContent value="overview" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[
-              { title: "Total Sales", value: "$0", change: "No sales yet", icon: DollarSign, trend: "neutral" },
+              { title: "Total Sales", value: "AED 0", change: "No sales yet", icon: DollarSign, trend: "neutral" },
               { title: "Visitors", value: "0", change: "Awaiting first visitor", icon: Users, trend: "neutral" },
               { title: "Orders", value: "0", change: "No orders yet", icon: ShoppingBag, trend: "neutral" },
               { title: "Stock Items", value: "0", change: "No items in stock", icon: Package, trend: "neutral" },
@@ -185,7 +185,7 @@ const Dashboard: React.FC = () => {
                           <p className="text-sm font-medium">{product.name}</p>
                           <p className="text-xs text-muted-foreground">{product.sales} units sold</p>
                         </div>
-                        <p className="text-sm font-semibold">${product.revenue.toFixed(2)}</p>
+                        <p className="text-sm font-semibold">AED {product.revenue.toFixed(2)}</p>
                       </div>
                     ))}
                   </div>
@@ -228,7 +228,7 @@ const Dashboard: React.FC = () => {
                     },
                     { 
                       label: "Avg. Order Value", 
-                      value: customerStats?.avgOrderValue ? `$${customerStats.avgOrderValue}` : '$0', 
+                      value: customerStats?.avgOrderValue ? `AED ${customerStats.avgOrderValue}` : 'AED 0', 
                       icon: DollarSign, 
                       change: "per order" 
                     },

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Package, 
@@ -251,7 +250,7 @@ const Sales: React.FC = () => {
                       {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right">${order.total.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">AED {order.total.toFixed(2)}</TableCell>
                   <TableCell className="text-right">
                     <Dialog>
                       <DialogTrigger asChild>
@@ -306,8 +305,8 @@ const Sales: React.FC = () => {
                                     <TableRow key={item.id}>
                                       <TableCell className="font-medium">{item.productName}</TableCell>
                                       <TableCell className="text-center">{item.quantity}</TableCell>
-                                      <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
-                                      <TableCell className="text-right">${(item.price * item.quantity).toFixed(2)}</TableCell>
+                                      <TableCell className="text-right">AED {item.price.toFixed(2)}</TableCell>
+                                      <TableCell className="text-right">AED {(item.price * item.quantity).toFixed(2)}</TableCell>
                                     </TableRow>
                                   ))}
                                 </TableBody>
@@ -315,7 +314,7 @@ const Sales: React.FC = () => {
                             </div>
                             
                             <div className="flex justify-between items-center pt-4 border-t">
-                              <div className="text-lg font-bold">Total: ${currentOrder.total.toFixed(2)}</div>
+                              <div className="text-lg font-bold">Total: AED {currentOrder.total.toFixed(2)}</div>
                               <div>
                                 <Select 
                                   defaultValue={currentOrder.status}
