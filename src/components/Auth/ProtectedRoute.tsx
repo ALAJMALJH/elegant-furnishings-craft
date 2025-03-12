@@ -1,64 +1,90 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { toast } from '@/components/ui/use-toast';
 
-// Define the roles and their access levels
-export const ROLES = {
-  SUPER_ADMIN: 'super_admin',
-  MANAGER: 'manager',
-  SUPPORT: 'support',
-  ADMIN: 'admin', // For backward compatibility
-};
-
-// Define route access by role
-const ROLE_ACCESS = {
-  '/admin/dashboard': [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.SUPPORT, ROLES.ADMIN],
-  '/admin/products': [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.ADMIN],
-  '/admin/sales': [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.ADMIN],
-  '/admin/customers': [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.SUPPORT, ROLES.ADMIN],
-  '/admin/analytics': [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.ADMIN],
-  '/admin/discounts': [ROLES.SUPER_ADMIN, ROLES.MANAGER, ROLES.ADMIN],
-  '/admin/settings': [ROLES.SUPER_ADMIN, ROLES.ADMIN],
+// Define permissions for each role
+const rolePermissions = {
+  super_admin: {
+    // Super admin can access everything
+    allowedRoutes: [
+      '/admin/dashboard',
+      '/admin/products',
+      '/admin/sales',
+      '/admin/customers',
+      '/admin/analytics',
+      '/admin/discounts',
+      '/admin/settings',
+    ],
+    canEdit: true,
+    canDelete: true,
+  },
+  manager: {
+    // Manager can access most things but not settings
+    allowedRoutes: [
+      '/admin/dashboard',
+      '/admin/products',
+      '/admin/sales',
+      '/admin/customers',
+      '/admin/analytics',
+      '/admin/discounts',
+    ],
+    canEdit: true,
+    canDelete: false,
+  },
+  support: {
+    // Support can only view customers, sales, and dashboard
+    allowedRoutes: [
+      '/admin/dashboard',
+      '/admin/sales',
+      '/admin/customers',
+    ],
+    canEdit: false,
+    canDelete: false,
+  },
 };
 
 const ProtectedRoute: React.FC = () => {
   const location = useLocation();
   
-  // Check if user is authenticated
+  // Get user from localStorage
   const userString = localStorage.getItem('user');
   const user = userString ? JSON.parse(userString) : null;
   
-  // If not authenticated, redirect to login
+  useEffect(() => {
+    // Check if user is authenticated but doesn't have permission for this route
+    if (user && user.isAuthenticated && user.role) {
+      const permissions = rolePermissions[user.role as keyof typeof rolePermissions];
+      
+      if (permissions && !permissions.allowedRoutes.includes(location.pathname)) {
+        toast({
+          title: "Access Denied",
+          description: `You don't have permission to access ${location.pathname}`,
+          variant: "destructive",
+        });
+      }
+    }
+  }, [location.pathname, user]);
+  
+  // If user is not authenticated, redirect to login
   if (!user || !user.isAuthenticated) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/auth" state={{ from: location }} replace />;
   }
   
-  // Check role-based access for the current path
-  const currentPath = Object.keys(ROLE_ACCESS).find(path => 
-    location.pathname.startsWith(path)
-  );
-  
-  // If path requires role check
-  if (currentPath) {
-    const userRole = user.role || ROLES.ADMIN; // Default to admin for backwards compatibility
-    const allowedRoles = ROLE_ACCESS[currentPath];
+  // Check if user has permission to access this route
+  if (user.role) {
+    const permissions = rolePermissions[user.role as keyof typeof rolePermissions];
     
-    // If user doesn't have permission for this route
-    if (!allowedRoles.includes(userRole)) {
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to access this page",
-        variant: "destructive"
-      });
-      
-      // Redirect to dashboard or a permitted page
+    if (permissions && !permissions.allowedRoutes.includes(location.pathname)) {
+      // Redirect to dashboard if user doesn't have permission
       return <Navigate to="/admin/dashboard" replace />;
     }
   }
   
-  // If authenticated and has permission, render the child routes
+  // If authenticated and has permission, render the outlet
   return <Outlet />;
 };
 
+// Export permissions for use in other components
+export { rolePermissions };
 export default ProtectedRoute;

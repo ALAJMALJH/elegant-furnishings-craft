@@ -1,143 +1,194 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { toast } from "@/components/ui/use-toast";
-import { Eye, EyeOff, Lock, User } from "lucide-react";
-import { ROLES } from './ProtectedRoute';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { toast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { Lock, UserCircle2 } from 'lucide-react';
 
-// Simulated admin users - in a real application, this would be in a secure database
-const ADMIN_USERS = [
-  { username: 'admin', password: 'admin123', role: ROLES.SUPER_ADMIN },
-  { username: 'manager', password: 'manager123', role: ROLES.MANAGER },
-  { username: 'support', password: 'support123', role: ROLES.SUPPORT },
-  { username: 'ceo@ajmalfurniture.com', password: 'Ceoajmal11CE@', role: ROLES.SUPER_ADMIN },
-  { username: 'cto@ajmalfurniture.com', password: 'Ctoajmal11CT@', role: ROLES.SUPER_ADMIN },
-  { username: 'manager@ajmalfurniture.com', password: 'Managerajmal11MA@', role: ROLES.MANAGER },
-  { username: 'sales@ajmalfurniture.com', password: 'Salesajmal11SA@', role: ROLES.MANAGER },
-  { username: 'support@ajmalfurniture.com', password: 'Supportajmal11SU@', role: ROLES.SUPPORT },
-  { username: 'hr@ajmalfurniture.com', password: 'Hrajmal11HR@', role: ROLES.MANAGER },
-  { username: 'marketing@ajmalfurniture.com', password: 'Marketingajmal11MA@', role: ROLES.MANAGER },
-  { username: 'finance@ajmalfurniture.com', password: 'Financeajmal11FI@', role: ROLES.MANAGER },
-  { username: 'operations@ajmalfurniture.com', password: 'Operationsajmal11OP@', role: ROLES.MANAGER },
-  { username: 'admin@ajmalfurniture.com', password: 'Adminajmal11AD@', role: ROLES.SUPER_ADMIN }
+// Demo admin accounts with roles
+const DEMO_ADMINS = [
+  { username: 'admin', password: 'admin123', role: 'super_admin', displayName: 'Super Admin' },
+  { username: 'manager', password: 'manager123', role: 'manager', displayName: 'Store Manager' },
+  { username: 'support', password: 'support123', role: 'support', displayName: 'Support Team' },
 ];
 
 const LoginForm = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setError(''); // Clear error when user types
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    // Simulate API call delay
-    setTimeout(() => {
-      // Check if user exists and credentials match
-      const user = ADMIN_USERS.find(
-        (user) => user.username === username && user.password === password
+    setError('');
+    
+    try {
+      // In a real app, you would authenticate with Supabase Auth
+      // For demo, we'll use local check against demo accounts
+      const admin = DEMO_ADMINS.find(
+        admin => admin.username === formData.username && admin.password === formData.password
       );
-
-      if (user) {
-        // Store user info in localStorage (in a real app, use a more secure method with JWT)
-        localStorage.setItem('user', JSON.stringify({
-          username: user.username,
-          role: user.role,
-          isAuthenticated: true
-        }));
-        
-        toast({
-          title: "Login successful",
-          description: `Welcome back, ${user.username}!`,
-        });
-        
-        navigate('/admin/dashboard');
-      } else {
-        toast({
-          title: "Login failed",
-          description: "Invalid username or password",
-          variant: "destructive"
-        });
+      
+      if (!admin) {
+        throw new Error('Invalid username or password');
       }
       
+      // Log successful login attempt (in a real app, this would be tracked in a secure way)
+      try {
+        await supabase
+          .from('page_visits')
+          .insert([
+            { 
+              page_path: '/auth', 
+              visitor_id: `admin_${admin.username}`,
+              source: 'admin_login',
+              user_agent: navigator.userAgent
+            }
+          ]);
+      } catch (logError) {
+        console.error('Error logging visit:', logError);
+      }
+      
+      // Set user in localStorage 
+      // In a real app, this would be handled by Supabase Auth tokens
+      localStorage.setItem('user', JSON.stringify({
+        id: `demo-${admin.username}`,
+        username: admin.username,
+        displayName: admin.displayName,
+        role: admin.role,
+        isAuthenticated: true,
+        lastLogin: new Date().toISOString(),
+      }));
+      
+      // Show success toast
+      toast({
+        title: "Login successful",
+        description: `Welcome back, ${admin.displayName}!`,
+      });
+      
+      // Navigate to dashboard
+      navigate('/admin/dashboard');
+      
+    } catch (err: any) {
+      setError(err.message);
+      toast({
+        title: "Login failed",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
-    <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-lg">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-furniture-dark">Admin Login</h1>
-        <p className="mt-2 text-furniture-accent2">Enter your credentials to access the dashboard</p>
-      </div>
-      
-      <Separator />
-      
-      <form onSubmit={handleLogin} className="space-y-6">
-        <div className="space-y-2">
-          <label htmlFor="username" className="text-sm font-medium text-furniture-dark">
-            Username
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <User className="w-4 h-4 text-muted-foreground" />
+    <Card className="w-full max-w-md">
+      <CardHeader>
+        <CardTitle className="text-2xl text-center">Admin Login</CardTitle>
+        <CardDescription className="text-center">
+          Sign in to access the admin dashboard
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <div className="relative">
+                <UserCircle2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="username"
+                  name="username"
+                  placeholder="Enter your username"
+                  className="pl-9"
+                  value={formData.username}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
             </div>
-            <Input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="pl-10"
-              placeholder="Enter your username"
-              required
-            />
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  className="pl-9"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+            </div>
+            
+            {error && (
+              <div className="p-3 rounded-md bg-red-50 text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+            
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? 'Signing in...' : 'Sign In'}
+            </Button>
+          </div>
+        </form>
+        
+        <div className="mt-6 border-t pt-4">
+          <p className="text-sm text-muted-foreground mb-2">Demo Credentials:</p>
+          <div className="grid gap-2">
+            {DEMO_ADMINS.map((admin) => (
+              <div key={admin.username} className="flex items-center justify-between text-xs">
+                <div>
+                  <span className="font-medium">{admin.displayName}</span>
+                  <span className="text-muted-foreground"> - {admin.username}</span>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    setFormData({
+                      username: admin.username,
+                      password: admin.password,
+                    });
+                  }}
+                  className="h-6 text-xs"
+                >
+                  Use
+                </Button>
+              </div>
+            ))}
           </div>
         </div>
-        
-        <div className="space-y-2">
-          <label htmlFor="password" className="text-sm font-medium text-furniture-dark">
-            Password
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <Lock className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="pl-10"
-              placeholder="Enter your password"
-              required
-            />
-            <button
-              type="button"
-              className="absolute inset-y-0 right-0 flex items-center pr-3"
-              onClick={() => setShowPassword(!showPassword)}
-            >
-              {showPassword ? (
-                <EyeOff className="w-4 h-4 text-muted-foreground" />
-              ) : (
-                <Eye className="w-4 h-4 text-muted-foreground" />
-              )}
-            </button>
-          </div>
-        </div>
-        
-        <Button 
-          type="submit" 
-          className="w-full btn-primary" 
-          disabled={isLoading}
-        >
-          {isLoading ? "Logging in..." : "Login"}
-        </Button>
-      </form>
-    </div>
+      </CardContent>
+      <CardFooter className="flex justify-between text-xs text-muted-foreground">
+        <p>©  AL AJMAL Furniture</p>
+        <p>Admin v1.0</p>
+      </CardFooter>
+    </Card>
   );
 };
 

@@ -33,7 +33,16 @@ import Analytics from "./pages/admin/Analytics";
 import Discounts from "./pages/admin/Discounts";
 import Settings from "./pages/admin/Settings";
 
-const queryClient = new QueryClient();
+// Create a client for react-query with retry settings
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: true,
+      staleTime: 30000, // 30 seconds
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
