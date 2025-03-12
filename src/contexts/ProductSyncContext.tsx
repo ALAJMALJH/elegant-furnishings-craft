@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
@@ -193,34 +194,3 @@ export const ProductSyncProvider: React.FC<ProductSyncProviderProps> = ({ childr
     </ProductSyncContext.Provider>
   );
 };
-
-// Context interface
-interface ProductSyncContextType {
-  products: Product[];
-  featuredProducts: Product[];
-  bestsellerProducts: Product[];
-  newArrivals: Product[];
-  onSaleProducts: Product[];
-  categories: Map<string, { count: number; image: string }>;
-  isLoading: boolean;
-  refreshProducts: () => Promise<void>;
-  getProductById: (id: string) => Product | undefined;
-  getProductsByCategory: (category: string) => Product[];
-}
-
-// Create context with default values
-const ProductSyncContext = createContext<ProductSyncContextType>({
-  products: [],
-  featuredProducts: [],
-  bestsellerProducts: [],
-  newArrivals: [],
-  onSaleProducts: [],
-  categories: new Map(),
-  isLoading: true,
-  refreshProducts: async () => {},
-  getProductById: () => undefined,
-  getProductsByCategory: () => [],
-});
-
-// Hook for components to access this context
-export const useProductSync = () => useContext(ProductSyncContext);
