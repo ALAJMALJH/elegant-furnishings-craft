@@ -764,6 +764,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_manage_products: {
+        Args: {
+          user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _user_id: string

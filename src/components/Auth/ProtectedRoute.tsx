@@ -190,6 +190,32 @@ const ProtectedRoute: React.FC = () => {
   const user = userString ? JSON.parse(userString) : null;
   
   useEffect(() => {
+    // Fetch and update user session on component mount
+    const getUser = async () => {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        
+        if (authUser && (!user || !user.isAuthenticated)) {
+          // If authenticated in Supabase but not in localStorage, update localStorage
+          const userRole = getRoleFromEmail(authUser.email || '');
+          localStorage.setItem('user', JSON.stringify({
+            id: authUser.id,
+            email: authUser.email,
+            role: userRole,
+            isAuthenticated: true
+          }));
+          
+          console.log('Updated user session from Supabase:', userRole);
+        }
+      } catch (error) {
+        console.error('Error fetching user session:', error);
+      }
+    };
+    
+    getUser();
+  }, []);
+  
+  useEffect(() => {
     // Check if user is authenticated but doesn't have permission for this route
     if (user && user.isAuthenticated && user.role) {
       const permissions = rolePermissions[user.role as keyof typeof rolePermissions];

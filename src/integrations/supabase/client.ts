@@ -43,17 +43,26 @@ export const mapRoleToDatabase = (frontendRole: string): string => {
   return roleMap[frontendRole] || 'user';
 };
 
+// Function to ensure the user is logged in and get their ID
+const getCurrentUserId = async (): Promise<string | null> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.id || null;
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    return null;
+  }
+};
+
 // Check if the current user has a specific database role
 export const checkUserDatabaseRole = async (databaseRole: string): Promise<boolean> => {
   try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) return false;
+    const userId = await getCurrentUserId();
+    if (!userId) return false;
     
     // Call the has_role RPC with both required parameters
     const { data, error } = await supabase.rpc('has_role', { 
-      _user_id: user.id,
+      _user_id: userId,
       _role: databaseRole as "admin" | "moderator" | "user"
     });
     
@@ -68,7 +77,19 @@ export const checkUserDatabaseRole = async (databaseRole: string): Promise<boole
 // Function to check if current user can manage products
 export const canManageProducts = async (): Promise<boolean> => {
   try {
-    // Get user from localStorage for client-side check
+    // First try Supabase DB function if user is logged in
+    const userId = await getCurrentUserId();
+    if (userId) {
+      const { data, error } = await supabase.rpc('can_manage_products', { 
+        user_id: userId 
+      });
+      
+      if (!error && data) {
+        return true;
+      }
+    }
+    
+    // Fallback to client-side check for demo purposes
     const userString = localStorage.getItem('user');
     const user = userString ? JSON.parse(userString) : null;
     
