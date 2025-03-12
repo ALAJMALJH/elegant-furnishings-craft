@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Facebook, Instagram, Twitter, Mail, Phone, MapPin, CreditCard, DollarSign, Truck, Shield, Lock } from "lucide-react";
+import { Facebook, Instagram, Twitter, Mail, Phone, MapPin, CreditCard, DollarSign, Truck, Shield, Lock, MessageCircleQuestion } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -136,6 +136,15 @@ const Footer = () => {
                   Contact Us
                 </Link>
               </li>
+              <li>
+                <Link
+                  to="/cart-check"
+                  className="text-furniture-muted hover:text-furniture-accent transition-colors text-sm flex items-center gap-1"
+                >
+                  <MessageCircleQuestion size={16} />
+                  Order Support
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -251,6 +260,21 @@ const Footer = () => {
               <p className="text-xs text-furniture-muted">0% interest for 12 months</p>
             </div>
           </div>
+        </div>
+
+        {/* Customer Support Button (Centered) */}
+        <div className="flex justify-center my-6">
+          <Button 
+            variant="outline" 
+            size="lg" 
+            className="border-furniture-accent text-furniture-accent hover:bg-furniture-accent hover:text-white transition-colors"
+            asChild
+          >
+            <Link to="/cart-check">
+              <MessageCircleQuestion className="mr-2" />
+              Check Your Order Status
+            </Link>
+          </Button>
         </div>
 
         {/* Bottom Section */}
