@@ -164,7 +164,7 @@ const ProtectedRoute: React.FC = () => {
         // Always verify with the server for the most up-to-date role
         const role = await getUserRoleFromEmail();
         
-        if (role !== 'guest') {
+        if (role && role !== 'guest') {
           // Update localStorage with the latest role
           const updatedUser = {
             ...user,
