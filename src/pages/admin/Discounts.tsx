@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,6 +37,13 @@ interface DiscountCode {
   updated_at: string;
 }
 
+// Mock data for analytics section
+const discountStats = {
+  active: 3,
+  totalRedemptions: 1247,
+  revenue: 125680
+};
+
 const Discounts = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
@@ -72,9 +80,14 @@ const Discounts = () => {
 
   const createDiscount = useMutation({
     mutationFn: async (discount: Partial<DiscountCode>) => {
+      // Ensure required fields are present
+      if (!discount.code || !discount.type || discount.value === undefined) {
+        throw new Error('Missing required fields: code, type, or value');
+      }
+      
       const { data, error } = await supabase
         .from('discount_codes')
-        .insert([discount])
+        .insert(discount)
         .select()
         .single();
 
@@ -309,29 +322,29 @@ const Discounts = () => {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="minPurchase">Minimum Purchase ($)</Label>
+                      <Label htmlFor="min_purchase">Minimum Purchase ($)</Label>
                       <Input
-                        id="minPurchase"
+                        id="min_purchase"
                         type="number"
                         placeholder="Optional"
-                        value={newDiscount.minPurchase || ''}
+                        value={newDiscount.min_purchase || ''}
                         onChange={(e) => setNewDiscount({
                           ...newDiscount, 
-                          minPurchase: e.target.value ? parseFloat(e.target.value) : null
+                          min_purchase: e.target.value ? parseFloat(e.target.value) : null
                         })}
                       />
                     </div>
                     
                     <div className="grid gap-2">
-                      <Label htmlFor="usageLimit">Usage Limit</Label>
+                      <Label htmlFor="usage_limit">Usage Limit</Label>
                       <Input
-                        id="usageLimit"
+                        id="usage_limit"
                         type="number"
                         placeholder="Optional"
-                        value={newDiscount.usageLimit || ''}
+                        value={newDiscount.usage_limit || ''}
                         onChange={(e) => setNewDiscount({
                           ...newDiscount, 
-                          usageLimit: e.target.value ? parseInt(e.target.value) : null
+                          usage_limit: e.target.value ? parseInt(e.target.value) : null
                         })}
                       />
                     </div>
@@ -340,8 +353,8 @@ const Discounts = () => {
                   <div className="flex items-center space-x-2">
                     <Switch
                       id="active"
-                      checked={newDiscount.isActive}
-                      onCheckedChange={(checked) => setNewDiscount({...newDiscount, isActive: checked})}
+                      checked={newDiscount.is_active}
+                      onCheckedChange={(checked) => setNewDiscount({...newDiscount, is_active: checked})}
                     />
                     <Label htmlFor="active">Active</Label>
                   </div>
@@ -393,11 +406,11 @@ const Discounts = () => {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            From: {format(discount.start_date, 'MMM d, yyyy')}
+                            From: {format(new Date(discount.start_date), 'MMM d, yyyy')}
                           </div>
                           {discount.end_date && (
                             <div className="text-sm text-muted-foreground">
-                              To: {format(discount.end_date, 'MMM d, yyyy')}
+                              To: {format(new Date(discount.end_date), 'MMM d, yyyy')}
                             </div>
                           )}
                           {!discount.end_date && (
@@ -462,7 +475,7 @@ const Discounts = () => {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Active Discounts</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{mockDiscountStats.active}</div>
+                <div className="text-2xl font-bold">{discountStats.active}</div>
                 <div className="text-xs text-muted-foreground mt-1">Currently running</div>
               </CardContent>
             </Card>
@@ -472,7 +485,7 @@ const Discounts = () => {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Total Redemptions</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{mockDiscountStats.totalRedemptions}</div>
+                <div className="text-2xl font-bold">{discountStats.totalRedemptions}</div>
                 <div className="text-xs text-muted-foreground mt-1">All time</div>
               </CardContent>
             </Card>
@@ -482,7 +495,7 @@ const Discounts = () => {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Revenue with Discounts</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${mockDiscountStats.revenue.toLocaleString()}</div>
+                <div className="text-2xl font-bold">${discountStats.revenue.toLocaleString()}</div>
                 <div className="text-xs text-muted-foreground mt-1">From discounted orders</div>
               </CardContent>
             </Card>
