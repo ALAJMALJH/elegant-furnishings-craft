@@ -2,6 +2,7 @@
 import React from "react";
 import ProductCard from "../UI/ProductCard";
 import { useProductSync } from "@/contexts/ProductSyncContext";
+import { toast } from "@/components/ui/use-toast";
 
 const BestsellerSection = () => {
   const { bestsellerProducts, isLoading } = useProductSync();
@@ -12,6 +13,12 @@ const BestsellerSection = () => {
     if (product.is_on_sale) return "Limited";
     return undefined;
   };
+
+  // Log products for debugging
+  React.useEffect(() => {
+    console.log('[BestsellerSection] Products loaded:', bestsellerProducts?.length || 0);
+    console.log('[BestsellerSection] Loading state:', isLoading);
+  }, [bestsellerProducts, isLoading]);
 
   return (
     <section className="py-20">
@@ -30,7 +37,7 @@ const BestsellerSection = () => {
               />
             ))}
           </div>
-        ) : bestsellerProducts.length > 0 ? (
+        ) : bestsellerProducts && bestsellerProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
             {bestsellerProducts.slice(0, 8).map((product, index) => (
               <ProductCard

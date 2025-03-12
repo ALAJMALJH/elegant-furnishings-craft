@@ -1,7 +1,7 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 
 // Define the types for products
 interface Product {
@@ -87,9 +87,11 @@ export const ProductSyncProvider: React.FC<ProductSyncProviderProps> = ({ childr
     }
   });
 
-  // Fetch all products
+  // Fetch all products with cache busting
   const fetchProducts = async () => {
     setIsLoading(true);
+    console.log('[ProductSync] Fetching products...');
+    
     try {
       const { data, error } = await supabase
         .from('products')
@@ -115,11 +117,11 @@ export const ProductSyncProvider: React.FC<ProductSyncProviderProps> = ({ childr
     }
   };
 
-  // Setup Supabase realtime subscription
+  // Set up real-time subscriptions with error handling
   useEffect(() => {
-    const channel = supabase.channel('product-sync-channel');
-    
-    channel
+    fetchProducts(); // Initial fetch
+
+    const channel = supabase.channel('product-updates')
       .on(
         'postgres_changes',
         {
@@ -127,48 +129,38 @@ export const ProductSyncProvider: React.FC<ProductSyncProviderProps> = ({ childr
           schema: 'public',
           table: 'products',
         },
-        (payload) => {
-          console.log('[ProductSync] Product update received:', payload);
+        async (payload) => {
+          console.log('[ProductSync] Real-time update received:', payload);
           
-          // Update the products state based on the received event
-          if (payload.eventType === 'INSERT') {
-            setProducts(prev => [payload.new as Product, ...prev]);
-          } else if (payload.eventType === 'UPDATE') {
-            setProducts(prev => 
-              prev.map(p => p.id === payload.new.id ? (payload.new as Product) : p)
-            );
-          } else if (payload.eventType === 'DELETE') {
-            setProducts(prev => 
-              prev.filter(p => p.id !== payload.old.id)
-            );
-          }
+          // Always fetch fresh data after any change
+          await fetchProducts();
           
-          // Show toast notification for product updates
-          const productName = (payload.new as Product)?.name || (payload.old as Product)?.name;
-          if (productName) {
-            const messages = {
-              INSERT: `New product added: ${productName}`,
-              UPDATE: `Product updated: ${productName}`,
-              DELETE: `Product removed: ${productName}`,
-            };
-            
-            toast({
-              title: messages[payload.eventType as keyof typeof messages] || 'Product catalog updated',
-              description: 'The product catalog has been updated.',
-              duration: 3000,
-            });
-          }
+          // Show toast notification
+          toast({
+            title: 'Products Updated',
+            description: 'Product catalog has been updated.',
+            duration: 3000,
+          });
         }
       )
       .subscribe((status) => {
         console.log('[ProductSync] Subscription status:', status);
+        
+        if (status === 'SUBSCRIBED') {
+          console.log('[ProductSync] Successfully subscribed to real-time updates');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('[ProductSync] Failed to subscribe to real-time updates');
+          toast({
+            title: 'Connection Error',
+            description: 'Unable to receive real-time updates. Please refresh the page.',
+            variant: 'destructive',
+          });
+        }
       });
-    
-    // Initial fetch
-    fetchProducts();
-    
-    // Cleanup function
+
+    // Cleanup
     return () => {
+      console.log('[ProductSync] Cleaning up subscription');
       supabase.removeChannel(channel);
     };
   }, []);
@@ -182,7 +174,6 @@ export const ProductSyncProvider: React.FC<ProductSyncProviderProps> = ({ childr
     return products.filter(p => p.category === category);
   };
 
-  // Context value
   const value = {
     products,
     featuredProducts,
@@ -202,3 +193,34 @@ export const ProductSyncProvider: React.FC<ProductSyncProviderProps> = ({ childr
     </ProductSyncContext.Provider>
   );
 };
+
+// Context interface
+interface ProductSyncContextType {
+  products: Product[];
+  featuredProducts: Product[];
+  bestsellerProducts: Product[];
+  newArrivals: Product[];
+  onSaleProducts: Product[];
+  categories: Map<string, { count: number; image: string }>;
+  isLoading: boolean;
+  refreshProducts: () => Promise<void>;
+  getProductById: (id: string) => Product | undefined;
+  getProductsByCategory: (category: string) => Product[];
+}
+
+// Create context with default values
+const ProductSyncContext = createContext<ProductSyncContextType>({
+  products: [],
+  featuredProducts: [],
+  bestsellerProducts: [],
+  newArrivals: [],
+  onSaleProducts: [],
+  categories: new Map(),
+  isLoading: true,
+  refreshProducts: async () => {},
+  getProductById: () => undefined,
+  getProductsByCategory: () => [],
+});
+
+// Hook for components to access this context
+export const useProductSync = () => useContext(ProductSyncContext);
