@@ -48,14 +48,32 @@ const CartChecker: React.FC = () => {
   const onSubmit = async (data: CartCheckerForm) => {
     setIsLoading(true);
     try {
-      const { data: cartRecord, error } = await supabase
+      // First try with exact cart_id match
+      let { data: cartRecord, error } = await supabase
         .from('carts')
         .select('cart_data')
         .eq('cart_id', data.cartId)
         .maybeSingle();
       
       if (error) {
-        throw error;
+        console.error('Error fetching cart by cart_id:', error);
+      }
+      
+      // If no results with cart_id, try to find cart where cart_data contains the cart ID
+      if (!cartRecord) {
+        const { data: jsonContainsResults, error: jsonError } = await supabase
+          .from('carts')
+          .select('cart_data')
+          .contains('cart_data', { id: data.cartId })
+          .maybeSingle();
+          
+        if (jsonError) {
+          console.error('Error fetching cart by JSON contains:', jsonError);
+        }
+        
+        if (jsonContainsResults) {
+          cartRecord = jsonContainsResults;
+        }
       }
       
       if (!cartRecord) {
@@ -70,12 +88,25 @@ const CartChecker: React.FC = () => {
       
       // Cast the JSON data to CartState
       const cart = cartRecord.cart_data as unknown as CartState;
+      
+      if (!cart || !cart.items) {
+        toast({
+          title: "Invalid cart data",
+          description: "The cart data is not in the expected format",
+          variant: "destructive"
+        });
+        setCartData(null);
+        return;
+      }
+      
       setCartData(cart);
       
       toast({
         title: "Cart found",
         description: `Found cart with ID: ${data.cartId}`,
       });
+      
+      console.log("Retrieved cart data:", cart);
     } catch (error) {
       console.error('Error fetching cart:', error);
       toast({
