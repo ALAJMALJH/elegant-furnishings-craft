@@ -71,7 +71,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, canManageProducts } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { ProductVariant, ProductCollection, Json } from '@/components/Admin/Discounts/types';
@@ -128,11 +128,10 @@ const Products: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('general');
   const [warehouses, setWarehouses] = useState<{id: string, name: string}[]>([]);
-  
   const [variants, setVariants] = useState<ProductVariant[]>([]);
-  
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
-  
+  const [hasManagePermission, setHasManagePermission] = useState(false);
+
   const form = useForm<ProductFormData>({
     defaultValues: {
       name: '',
@@ -151,7 +150,7 @@ const Products: React.FC = () => {
       warehouse_id: null,
     },
   });
-  
+
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
@@ -216,6 +215,21 @@ const Products: React.FC = () => {
   useEffect(() => {
     fetchProducts();
     fetchWarehouses();
+    
+    const checkManagePermission = async () => {
+      const canManage = await canManageProducts();
+      setHasManagePermission(canManage);
+      
+      if (!canManage) {
+        toast({
+          title: "Permission Denied",
+          description: "You don't have permission to add or edit products. Contact an administrator for access.",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    checkManagePermission();
   }, []);
 
   useRealtimeSubscription(
@@ -258,6 +272,15 @@ const Products: React.FC = () => {
   const isLowStock = (product: Product) => product.stock_quantity <= (product.low_stock_threshold || 5);
 
   const handleEditProduct = (product: Product) => {
+    if (!hasManagePermission) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to edit products. Contact an administrator for access.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setEditingProduct(product);
     setVariants(product.variants || []);
     setSelectedCollections(product.collections || []);
@@ -284,6 +307,15 @@ const Products: React.FC = () => {
   };
 
   const onSubmit = async (data: ProductFormData) => {
+    if (!hasManagePermission) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to save products. Contact an administrator for access.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       setIsLoading(true);
       
@@ -383,6 +415,15 @@ const Products: React.FC = () => {
   };
 
   const handleDeleteProduct = async (productId: string) => {
+    if (!hasManagePermission) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to delete products. Contact an administrator for access.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       setIsLoading(true);
       const productToDelete = products.find(p => p.id === productId);
@@ -414,6 +455,15 @@ const Products: React.FC = () => {
   };
 
   const handleAddProduct = () => {
+    if (!hasManagePermission) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to add products. Contact an administrator for access.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setEditingProduct(null);
     resetFormState();
     setIsAddProductOpen(true);
@@ -433,7 +483,7 @@ const Products: React.FC = () => {
         <p className="text-muted-foreground mt-2">Manage your product inventory.</p>
       </div>
       
-      <ProductCSVImport onImportComplete={fetchProducts} />
+      {hasManagePermission && <ProductCSVImport onImportComplete={fetchProducts} />}
       
       <div className="flex flex-col sm:flex-row justify-between gap-4">
         <div className="flex flex-col sm:flex-row gap-4 flex-grow">
@@ -488,7 +538,7 @@ const Products: React.FC = () => {
           <Button onClick={fetchProducts} variant="outline" size="icon" title="Refresh Products">
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button onClick={handleAddProduct}>
+          <Button onClick={handleAddProduct} disabled={!hasManagePermission}>
             <Plus className="mr-2 h-4 w-4" /> Add Product
           </Button>
         </div>
@@ -619,6 +669,7 @@ const Products: React.FC = () => {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEditProduct(product)}
+                          disabled={!hasManagePermission}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -626,6 +677,7 @@ const Products: React.FC = () => {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDeleteProduct(product.id)}
+                          disabled={!hasManagePermission}
                         >
                           <Trash className="h-4 w-4" />
                         </Button>
@@ -1026,3 +1078,4 @@ const Products: React.FC = () => {
 };
 
 export default Products;
+
