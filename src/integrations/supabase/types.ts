@@ -9,6 +9,41 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      abandoned_cart_notifications: {
+        Row: {
+          cart_id: string
+          customer_email: string
+          id: string
+          notification_type: string
+          sent_at: string | null
+          status: string | null
+        }
+        Insert: {
+          cart_id: string
+          customer_email: string
+          id?: string
+          notification_type: string
+          sent_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          cart_id?: string
+          customer_email?: string
+          id?: string
+          notification_type?: string
+          sent_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abandoned_cart_notifications_cart_id_fkey"
+            columns: ["cart_id"]
+            isOneToOne: false
+            referencedRelation: "carts"
+            referencedColumns: ["cart_id"]
+          },
+        ]
+      }
       blog_posts: {
         Row: {
           author: string
@@ -138,6 +173,42 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_profiles: {
+        Row: {
+          created_at: string | null
+          first_name: string | null
+          id: string
+          last_login: string | null
+          last_name: string | null
+          loyalty_points: number | null
+          phone: string | null
+          updated_at: string | null
+          vip_status: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          first_name?: string | null
+          id: string
+          last_login?: string | null
+          last_name?: string | null
+          loyalty_points?: number | null
+          phone?: string | null
+          updated_at?: string | null
+          vip_status?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          last_login?: string | null
+          last_name?: string | null
+          loyalty_points?: number | null
+          phone?: string | null
+          updated_at?: string | null
+          vip_status?: boolean | null
+        }
+        Relationships: []
+      }
       customer_reviews: {
         Row: {
           created_at: string
@@ -175,6 +246,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      customer_segment_memberships: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          segment_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          segment_id: string
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          segment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_segment_memberships_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_segment_memberships_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "customer_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_segments: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
       }
       faqs: {
         Row: {
@@ -262,34 +387,55 @@ export type Database = {
       }
       orders: {
         Row: {
+          billing_address: Json | null
           created_at: string | null
           customer_email: string
           customer_name: string
           id: string
+          notes: string | null
           order_number: string
+          payment_method: string | null
+          shipping_address: Json | null
+          shipping_method: string | null
           status: string
           total_amount: number
+          tracking_number: string | null
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
+          billing_address?: Json | null
           created_at?: string | null
           customer_email: string
           customer_name: string
           id?: string
+          notes?: string | null
           order_number: string
+          payment_method?: string | null
+          shipping_address?: Json | null
+          shipping_method?: string | null
           status?: string
           total_amount: number
+          tracking_number?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
+          billing_address?: Json | null
           created_at?: string | null
           customer_email?: string
           customer_name?: string
           id?: string
+          notes?: string | null
           order_number?: string
+          payment_method?: string | null
+          shipping_address?: Json | null
+          shipping_method?: string | null
           status?: string
           total_amount?: number
+          tracking_number?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -416,6 +562,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       whatsapp_orders: {
         Row: {
           cart_data: Json
@@ -451,10 +618,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
