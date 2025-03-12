@@ -25,6 +25,31 @@ export const supabase = createClient<Database>(
   }
 );
 
+// Maps frontend role to database role
+export const mapRoleToDatabase = (frontendRole: string): string => {
+  const roleMap: Record<string, string> = {
+    'super_admin': 'admin',
+    'manager': 'moderator',
+    'support': 'user'
+  };
+  return roleMap[frontendRole] || 'user';
+};
+
+// Check if the current user has a specific database role
+export const checkUserDatabaseRole = async (databaseRole: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase.rpc('has_role', { 
+      _role: databaseRole as any 
+    });
+    
+    if (error) throw error;
+    return !!data;
+  } catch (error) {
+    console.error('Error checking user role:', error);
+    return false;
+  }
+};
+
 // Enable realtime subscriptions for relevant tables
 const enableRealtimeForTables = async () => {
   try {
