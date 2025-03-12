@@ -37,7 +37,7 @@ interface DiscountCode {
   updated_at: string;
 }
 
-// Mock data for analytics section
+// Data for analytics section
 const discountStats = {
   active: 3,
   totalRedemptions: 1247,
@@ -85,9 +85,22 @@ const Discounts = () => {
         throw new Error('Missing required fields: code, type, or value');
       }
       
+      // Create a properly typed object with all required fields for insertion
+      const discountToInsert = {
+        code: discount.code,
+        type: discount.type,
+        value: discount.value,
+        min_purchase: discount.min_purchase || null,
+        start_date: discount.start_date,
+        end_date: discount.end_date || null,
+        usage_limit: discount.usage_limit || null,
+        is_active: discount.is_active !== undefined ? discount.is_active : true,
+        applies_to: discount.applies_to || ['all']
+      };
+      
       const { data, error } = await supabase
         .from('discount_codes')
-        .insert(discount)
+        .insert(discountToInsert)
         .select()
         .single();
 
