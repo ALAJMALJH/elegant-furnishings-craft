@@ -55,6 +55,24 @@ const enableRealtimeForTables = async () => {
       }, (payload) => console.log('Order item change received:', payload))
       .subscribe();
       
+    // Enable for abandoned_cart_notifications table
+    await supabase.channel('abandoned-cart-notifications-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'abandoned_cart_notifications'
+      }, (payload) => console.log('Abandoned cart notification change received:', payload))
+      .subscribe();
+      
+    // Enable for carts table
+    await supabase.channel('carts-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'carts'
+      }, (payload) => console.log('Cart change received:', payload))
+      .subscribe();
+      
     console.log('Realtime subscriptions enabled for tables');
   } catch (error) {
     console.error('Error enabling realtime subscriptions:', error);

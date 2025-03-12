@@ -25,3 +25,12 @@ export interface DiscountStats {
   totalRedemptions: number;
   revenue: number;
 }
+
+export interface AbandonedCartNotification {
+  id: string;
+  cart_id: string;
+  customer_email: string;
+  notification_type: 'abandoned_cart' | 'price_drop' | 'back_in_stock';
+  status: 'pending' | 'sent' | 'failed';
+  sent_at: string | null;
+}
