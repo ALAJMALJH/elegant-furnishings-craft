@@ -48,6 +48,33 @@ export type Database = {
         }
         Relationships: []
       }
+      carts: {
+        Row: {
+          cart_data: Json
+          cart_id: string
+          created_at: string | null
+          id: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          cart_data: Json
+          cart_id: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          cart_data?: Json
+          cart_id?: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       contact_submissions: {
         Row: {
           created_at: string

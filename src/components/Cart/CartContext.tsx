@@ -195,14 +195,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // If user is logged in, try to fetch cart from database and merge if needed
         if (userId) {
-          const { data: dbCart } = await supabase
+          const { data, error } = await supabase
             .from('carts')
             .select('*')
             .eq('user_id', userId)
-            .single();
+            .maybeSingle();
             
-          if (dbCart && dbCart.cart_data) {
-            const dbCartData = dbCart.cart_data as unknown as CartState;
+          if (error) {
+            console.error('Error fetching cart from database:', error);
+          }
+          
+          if (data && data.cart_data) {
+            const dbCartData = data.cart_data as CartState;
             
             // Use the more recently updated cart (or database cart if timestamps match)
             if (!cartState.lastUpdated || dbCartData.lastUpdated >= cartState.lastUpdated) {
@@ -214,8 +218,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .upsert({
                   user_id: userId,
                   cart_id: cartState.id,
-                  cart_data: cartState,
-                  updated_at: new Date().toISOString()
+                  cart_data: cartState
                 });
             }
           } else {
@@ -225,8 +228,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .upsert({
                 user_id: userId,
                 cart_id: cartState.id,
-                cart_data: cartState,
-                updated_at: new Date().toISOString()
+                cart_data: cartState
               });
           }
         }
@@ -249,7 +251,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeCart();
   }, [userId]);
   
-  // Subscribe to realtime cart updates
+  // Subscribe to realtime cart updates for multi-device sync
   useRealtimeSubscription(
     userId ? [
       { table: 'carts', event: 'UPDATE', filter: 'user_id=eq.?', filterValues: [userId] }
@@ -257,7 +259,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     {
       carts: (payload) => {
         if (payload.new && payload.new.cart_data && payload.new.user_id === userId) {
-          const cartData = payload.new.cart_data as unknown as CartState;
+          const cartData = payload.new.cart_data as CartState;
           dispatch({ type: 'SYNC_CART', payload: cartData });
         }
       }
@@ -268,10 +270,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Save cart to localStorage and database when it changes
   useEffect(() => {
     if (!isLoading && state.id) {
-      // Save to localStorage
+      // Save to localStorage for persistent carts (guest users and logged in)
       localStorage.setItem('cart', JSON.stringify(state));
       
-      // Save to database if user is logged in
+      // Save to database if user is logged in for multi-device sync
       if (userId) {
         const saveCart = async () => {
           try {
@@ -280,8 +282,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .upsert({
                 user_id: userId,
                 cart_id: state.id,
-                cart_data: state,
-                updated_at: new Date().toISOString()
+                cart_data: state
               });
           } catch (error) {
             console.error('Error saving cart to database:', error);

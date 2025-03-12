@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ShoppingCart, 
@@ -18,9 +18,58 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from '@/integrations/supabase/client';
 
 const CartPage: React.FC = () => {
   const { state, removeFromCart, updateQuantity, generateWhatsAppLink, isLoading } = useCart();
+  
+  // Check real-time stock availability
+  useEffect(() => {
+    if (state.items.length > 0) {
+      const checkStockAvailability = async () => {
+        try {
+          // Get product IDs from cart
+          const productIds = state.items.map(item => item.id);
+          
+          // Fetch current stock information
+          const { data, error } = await supabase
+            .from('products')
+            .select('id, name, stock_quantity')
+            .in('id', productIds);
+            
+          if (error) throw error;
+          
+          // Check for low or out-of-stock items
+          if (data) {
+            data.forEach(product => {
+              const cartItem = state.items.find(item => item.id === product.id);
+              
+              if (cartItem && product.stock_quantity < cartItem.quantity) {
+                // Stock too low for requested quantity
+                toast({
+                  title: "Stock Alert",
+                  description: `Only ${product.stock_quantity} units of ${product.name} are available.`,
+                  variant: "destructive"
+                });
+                
+                if (product.stock_quantity <= 0) {
+                  // Remove item if out of stock
+                  removeFromCart(product.id);
+                } else {
+                  // Update quantity to available stock
+                  updateQuantity(product.id, product.stock_quantity);
+                }
+              }
+            });
+          }
+        } catch (error) {
+          console.error('Error checking stock availability:', error);
+        }
+      };
+      
+      checkStockAvailability();
+    }
+  }, [state.items]);
   
   if (isLoading) {
     return (
