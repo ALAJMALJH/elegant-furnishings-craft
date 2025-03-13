@@ -1,6 +1,8 @@
 
 import React from "react";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, BookOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 const BestsellerSection = () => {
   return (
@@ -18,9 +20,22 @@ const BestsellerSection = () => {
             We are currently updating our product inventory and shopping experience. 
             All products are temporarily unavailable as we make these improvements.
           </p>
-          <p className="text-gray-500">
+          <p className="text-gray-500 mb-6">
             Please check back soon or contact us directly for any inquiries about our furniture.
           </p>
+          <div className="flex justify-center gap-4">
+            <Link to="/contact">
+              <Button variant="outline">
+                Contact Us
+              </Button>
+            </Link>
+            <Link to="/blog">
+              <Button variant="outline">
+                <BookOpen className="h-4 w-4 mr-2" />
+                Read Our Blog
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     </section>

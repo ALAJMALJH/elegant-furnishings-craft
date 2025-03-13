@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, MailIcon, PhoneIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -9,6 +9,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 
 const CartPage: React.FC = () => {
@@ -27,10 +28,21 @@ const CartPage: React.FC = () => {
           <p className="text-muted-foreground mb-6">
             All products are temporarily unavailable. Please contact us directly for any inquiries.
           </p>
-          <Link to="/contact">
-            <Button>Contact Us</Button>
-          </Link>
         </CardContent>
+        <CardFooter className="flex flex-col sm:flex-row justify-center gap-4">
+          <Link to="/contact">
+            <Button>
+              <MailIcon className="h-4 w-4 mr-2" />
+              Contact Us
+            </Button>
+          </Link>
+          <Link to="/">
+            <Button variant="outline">
+              <PhoneIcon className="h-4 w-4 mr-2" />
+              Call: (800) 555-1234
+            </Button>
+          </Link>
+        </CardFooter>
       </Card>
     </div>
   );

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
@@ -8,7 +9,8 @@ import {
   Settings, 
   LogOut, 
   Home,
-  Bell
+  Bell,
+  Layers
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -28,6 +30,7 @@ const navigationItems = [
   { name: 'Dashboard', path: '/admin/dashboard', icon: Home },
   { name: 'Sales', path: '/admin/sales', icon: DollarSign },
   { name: 'Customers', path: '/admin/customers', icon: Users },
+  { name: 'Collections', path: '/admin/collections', icon: Layers },
   { name: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
   { name: 'Discounts', path: '/admin/discounts', icon: Tag },
   { name: 'Settings', path: '/admin/settings', icon: Settings },

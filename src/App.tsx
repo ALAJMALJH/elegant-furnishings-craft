@@ -1,9 +1,8 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ChatBox from "./components/Chat/ChatBox";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -35,6 +34,7 @@ import Analytics from "./pages/admin/Analytics";
 import Discounts from "./pages/admin/Discounts";
 import Settings from "./pages/admin/Settings";
 import AdminCartCheck from "./pages/admin/CartCheck";
+import CollectionsPage from './pages/admin/Collections';
 
 // Create a client for react-query with retry settings
 const queryClient = new QueryClient({
@@ -75,17 +75,17 @@ const App = () => (
             {/* Auth route */}
             <Route path="/auth" element={<Auth />} />
             
-            {/* Protected admin routes */}
-            <Route path="/admin" element={<ProtectedRoute />}>
-              <Route element={<AdminLayout />}>
+            {/* Admin Routes */}
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route element={<ProtectedRoute />}>
                 <Route path="dashboard" element={<Dashboard />} />
-                {/* Removed Products route */}
                 <Route path="sales" element={<Sales />} />
                 <Route path="customers" element={<Customers />} />
+                <Route path="collections" element={<CollectionsPage />} />
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="discounts" element={<Discounts />} />
                 <Route path="settings" element={<Settings />} />
-                <Route path="cart-check" element={<AdminCartCheck />} />
+                <Route path="" element={<Navigate to="/admin/dashboard" replace />} />
               </Route>
             </Route>
             

@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { toast } from '@/components/ui/use-toast';
@@ -12,6 +11,7 @@ const rolePermissions = {
     allowedRoutes: [
       '/admin/dashboard',
       '/admin/products',
+      '/admin/collections',
       '/admin/sales',
       '/admin/customers',
       '/admin/analytics',
@@ -31,6 +31,7 @@ const rolePermissions = {
     allowedRoutes: [
       '/admin/dashboard',
       '/admin/products',
+      '/admin/collections',
       '/admin/analytics',
       '/admin/settings',
     ],
@@ -47,6 +48,7 @@ const rolePermissions = {
     allowedRoutes: [
       '/admin/dashboard',
       '/admin/products',
+      '/admin/collections',
       '/admin/sales',
       '/admin/customers',
     ],
@@ -107,6 +109,7 @@ const rolePermissions = {
     allowedRoutes: [
       '/admin/dashboard',
       '/admin/products',
+      '/admin/collections',
       '/admin/discounts',
     ],
     canEdit: true,
@@ -137,6 +140,7 @@ const rolePermissions = {
     allowedRoutes: [
       '/admin/dashboard',
       '/admin/products',
+      '/admin/collections',
       '/admin/sales',
     ],
     canEdit: true,
@@ -152,6 +156,7 @@ const rolePermissions = {
     allowedRoutes: [
       '/admin/dashboard',
       '/admin/products',
+      '/admin/collections',
       '/admin/settings',
     ],
     canEdit: true,
