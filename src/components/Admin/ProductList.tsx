@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Table, 
   TableBody, 
@@ -25,11 +25,11 @@ import {
   Eye, 
   Copy, 
   AlertTriangle,
-  RefreshCcw
+  RefreshCcw,
+  Loader2
 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { supabase, ensureAuthForProducts, refreshAdminSession } from '@/integrations/supabase/client';
-import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 
 // Define the Product type
 interface Product {
@@ -55,10 +55,11 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [subscriptionStatus, setSubscriptionStatus] = useState<string>("initializing");
-  const [retryCount, setRetryCount] = useState(0);
+  const [subscribed, setSubscribed] = useState<boolean>(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
 
-  const fetchProducts = async () => {
+  // Enhanced fetchProducts function with better error handling
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       setAuthError(null);
@@ -71,6 +72,7 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
         return;
       }
       
+      console.log("Fetching products directly...");
       const { data, error } = await supabase
         .from('products')
         .select('*')
@@ -97,6 +99,7 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
             
             setProducts(retryData || []);
             setAuthError(null);
+            setLastRefreshed(new Date());
             return;
           } else {
             setAuthError('Authentication failed. Please refresh the page or log in again.');
@@ -106,6 +109,7 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
       }
       
       setProducts(data || []);
+      setLastRefreshed(new Date());
     } catch (error) {
       console.error('Error fetching products:', error);
       toast({
@@ -116,32 +120,42 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Initialize auth and fetch on mount
   useEffect(() => {
     const initializeAuth = async () => {
-      await ensureAuthForProducts();
-      fetchProducts();
+      try {
+        await ensureAuthForProducts();
+        fetchProducts();
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+        setAuthError("Failed to initialize authentication");
+      }
     };
     
     initializeAuth();
-  }, []);
+  }, [fetchProducts]);
 
-  // Enhanced real-time subscriptions with error handling
+  // Set up realtime subscription with improved error handling
   useEffect(() => {
     let realtimeChannel: any = null;
-    let retryTimeout: NodeJS.Timeout | null = null;
+    let errorRetryTimeout: NodeJS.Timeout | null = null;
+    let refreshInterval: NodeJS.Timeout | null = null;
 
-    const setupRealtime = async () => {
+    const setupRealtimeSubscription = async () => {
       try {
-        setSubscriptionStatus("connecting");
-        
-        // Make sure we're authenticated first
-        await ensureAuthForProducts();
-        
-        // Set up realtime subscription with proper error handling
-        realtimeChannel = supabase.channel('product-changes')
+        // Clean up any existing channel to prevent duplicate subscriptions
+        if (realtimeChannel) {
+          try {
+            supabase.removeChannel(realtimeChannel);
+          } catch (e) {
+            console.error("Error removing existing channel:", e);
+          }
+        }
+
+        console.log("Setting up realtime subscription for products...");
+        const channel = supabase.channel('product-changes-' + new Date().getTime())
           .on('postgres_changes', 
             { 
               event: '*', 
@@ -180,57 +194,68 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
                   description: `A product has been removed from the catalog.`,
                 });
               }
-            }
-          )
+            })
           .subscribe((status: string) => {
             console.log(`Realtime subscription status: ${status}`);
-            setSubscriptionStatus(status);
+            
             if (status === 'SUBSCRIBED') {
               console.log('Successfully subscribed to real-time updates for products');
-              setRetryCount(0); // Reset retry count on successful subscription
-            } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-              console.error(`Failed to subscribe to real-time updates: ${status}`);
+              setSubscribed(true);
               
-              // Implement exponential backoff for retries
-              if (retryCount < 5) {
-                const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
-                console.log(`Retrying in ${delay}ms (attempt ${retryCount + 1})`);
-                
-                if (retryTimeout) {
-                  clearTimeout(retryTimeout);
-                }
-                
-                retryTimeout = setTimeout(() => {
-                  setRetryCount(prev => prev + 1);
-                  if (realtimeChannel) {
-                    try {
-                      supabase.removeChannel(realtimeChannel);
-                    } catch (e) {
-                      console.error('Error removing channel:', e);
-                    }
-                  }
-                  setupRealtime();
-                }, delay);
+              // Clear any pending retry
+              if (errorRetryTimeout) {
+                clearTimeout(errorRetryTimeout);
+                errorRetryTimeout = null;
+              }
+              
+              // Clear any refresh interval since we're getting real-time updates
+              if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+              }
+            } 
+            else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+              console.error(`Failed to subscribe to real-time updates: ${status}`);
+              setSubscribed(false);
+              
+              // Fall back to periodic refreshes if realtime subscription fails
+              if (!refreshInterval) {
+                console.log("Setting up periodic refresh fallback every 30 seconds");
+                refreshInterval = setInterval(() => {
+                  console.log("Performing scheduled refresh due to inactive realtime");
+                  fetchProducts();
+                }, 30000); // Refresh every 30 seconds
               }
             }
           });
+        
+        realtimeChannel = channel;
       } catch (error) {
         console.error('Error setting up realtime subscription:', error);
-        setSubscriptionStatus("error");
-        // Fallback to load products directly
-        fetchProducts();
+        setSubscribed(false);
+        
+        // Fall back to periodic polling
+        if (!refreshInterval) {
+          refreshInterval = setInterval(() => {
+            console.log("Performing scheduled refresh due to realtime setup failure");
+            fetchProducts();
+          }, 30000); // Refresh every 30 seconds
+        }
       }
     };
 
-    try {
-      setupRealtime();
-    } catch (err) {
-      console.error('Fatal error in realtime setup:', err);
-      // Ensure products are still loaded even if realtime fails
-      fetchProducts();
-    }
+    // Set up the initial subscription
+    setupRealtimeSubscription();
 
-    // Clean up function
+    // Set up a fallback interval refresh if realtime isn't active
+    const fallbackInterval = setInterval(() => {
+      if (!subscribed) {
+        console.log("Performing fallback refresh due to inactive realtime");
+        fetchProducts();
+      }
+    }, 60000); // Every minute as a last resort
+
+    // Clean up on component unmount
     return () => {
       if (realtimeChannel) {
         try {
@@ -239,11 +264,28 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
           console.error('Error removing channel during cleanup:', e);
         }
       }
-      if (retryTimeout) {
-        clearTimeout(retryTimeout);
+      
+      if (errorRetryTimeout) {
+        clearTimeout(errorRetryTimeout);
       }
+      
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+      
+      clearInterval(fallbackInterval);
     };
-  }, [retryCount]);
+  }, [fetchProducts, subscribed]);
+
+  // Watch realtimeStatus prop to detect global connection issues
+  useEffect(() => {
+    if (realtimeStatus === 'CHANNEL_ERROR' || realtimeStatus === 'CLOSED' || realtimeStatus === 'error' || realtimeStatus === 'disconnected') {
+      if (subscribed) {
+        console.log("Global realtime connection issue detected, setting local subscribed state to false");
+        setSubscribed(false);
+      }
+    }
+  }, [realtimeStatus, subscribed]);
 
   const handleDeleteProduct = async (id: string, name: string) => {
     if (window.confirm(`Are you sure you want to delete ${name}?`)) {
@@ -267,7 +309,7 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
         if (error) throw error;
         
         // If realtime is not working, update locally
-        if (subscriptionStatus !== 'SUBSCRIBED') {
+        if (!subscribed) {
           setProducts(prev => prev.filter(product => product.id !== id));
         }
         
@@ -328,11 +370,15 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
         </div>
       )}
       
-      {(subscriptionStatus === "CLOSED" || subscriptionStatus === "CHANNEL_ERROR" || subscriptionStatus === "error") && (
+      {!subscribed && !loading && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md p-4 mb-4">
-          <div className="flex items-center">
-            <AlertTriangle className="h-5 w-5 mr-2 text-yellow-500" />
-            <span>Real-time updates are currently disconnected. Products may not update automatically.</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2 text-yellow-500" />
+              <span>
+                Using offline mode. Last refreshed: {lastRefreshed.toLocaleTimeString()}
+              </span>
+            </div>
             <Button 
               variant="outline" 
               size="sm" 
@@ -362,7 +408,10 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
             {loading ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center">
-                  Loading products...
+                  <div className="flex justify-center items-center">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2 text-primary" />
+                    <span>Loading products...</span>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : products.length === 0 ? (
