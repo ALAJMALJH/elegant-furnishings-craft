@@ -72,7 +72,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from '@/components/ui/use-toast';
-import { supabase, canManageProducts, ensureAuthForCollections } from '@/integrations/supabase/client';
+import { supabase, canManageProducts, ensureAuthForCollections, ensureAuthForProducts } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { ProductVariant, ProductCollection, Json } from '@/components/Admin/Discounts/types';
@@ -237,6 +237,7 @@ const Products: React.FC = () => {
         });
       } else {
         await ensureAuthForCollections();
+        await ensureAuthForProducts();
       }
     };
     
@@ -330,7 +331,7 @@ const Products: React.FC = () => {
     try {
       setIsLoading(true);
       
-      const isAuthenticated = await ensureAuthForCollections();
+      const isAuthenticated = await ensureAuthForProducts();
       if (!isAuthenticated) {
         throw new Error('You must be authenticated to save products');
       }
@@ -366,6 +367,8 @@ const Products: React.FC = () => {
         low_stock_threshold: data.low_stock_threshold,
         warehouse_id: data.warehouse_id,
       };
+      
+      console.log('Saving product with data:', productData);
       
       if (editingProduct) {
         const { error } = await supabase
