@@ -7,25 +7,44 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { RefreshCcw, WifiOff } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 
 interface ProductTabsProps {
   onEditProduct: (product: any) => void;
   realtimeStatus?: string;
 }
 
-const ProductTabs: React.FC<ProductTabsProps> = ({ onEditProduct, realtimeStatus }) => {
+const ProductTabs: React.FC<ProductTabsProps> = ({ onEditProduct, realtimeStatus: parentRealtimeStatus }) => {
   const { toast } = useToast();
   const [refreshKey, setRefreshKey] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'unknown'>('unknown');
+  
+  // Use the custom hook for realtime subscriptions
+  const { status: hookRealtimeStatus } = useRealtimeSubscription(
+    [{ table: 'products', event: '*' }],
+    {
+      // We don't need to define callbacks here as ProductList will handle its own data updates
+      products: () => {} 
+    },
+    false, // Disable toasts as we'll handle our own UI for connection status
+    'product-tabs-channel' // Provide a stable channel name
+  );
 
-  // Monitor realtime status and update local state
+  // Combine parent status with hook status to determine overall connection status
   useEffect(() => {
-    if (realtimeStatus === 'SUBSCRIBED') {
+    const effectiveStatus = parentRealtimeStatus || hookRealtimeStatus;
+    
+    if (effectiveStatus === 'SUBSCRIBED') {
       setConnectionStatus('connected');
-    } else if (realtimeStatus === 'CLOSED' || realtimeStatus === 'CHANNEL_ERROR' || realtimeStatus === 'disconnected' || realtimeStatus === 'error') {
+    } else if (
+      effectiveStatus === 'CLOSED' || 
+      effectiveStatus === 'CHANNEL_ERROR' || 
+      effectiveStatus === 'disconnected' || 
+      effectiveStatus === 'error'
+    ) {
       setConnectionStatus('disconnected');
     }
-  }, [realtimeStatus]);
+  }, [parentRealtimeStatus, hookRealtimeStatus]);
 
   const refreshProducts = () => {
     // Force re-render of ProductList to trigger a fresh data fetch
@@ -78,7 +97,7 @@ const ProductTabs: React.FC<ProductTabsProps> = ({ onEditProduct, realtimeStatus
               key={`product-list-${refreshKey}`} // Force remount when refreshKey changes
               onEdit={onEditProduct}
               refreshProducts={refreshProducts}
-              realtimeStatus={realtimeStatus}
+              realtimeStatus={connectionStatus === 'connected' ? 'SUBSCRIBED' : 'CLOSED'}
             />
           </CardContent>
         </Card>

@@ -55,8 +55,10 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [subscribed, setSubscribed] = useState<boolean>(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
+  
+  // Simplified subscribed state - now directly derived from props instead of maintaining separate state
+  const isSubscribed = realtimeStatus === 'SUBSCRIBED';
 
   // Enhanced fetchProducts function with better error handling
   const fetchProducts = useCallback(async () => {
@@ -139,21 +141,17 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
 
   // Set up realtime subscription with improved error handling
   useEffect(() => {
+    // Only set up realtime if we're subscribed according to parent component
+    if (!isSubscribed) {
+      console.log("Skipping realtime setup as parent indicates we're not subscribed");
+      return;
+    }
+    
     let realtimeChannel: any = null;
-    let errorRetryTimeout: NodeJS.Timeout | null = null;
     let refreshInterval: NodeJS.Timeout | null = null;
 
     const setupRealtimeSubscription = async () => {
       try {
-        // Clean up any existing channel to prevent duplicate subscriptions
-        if (realtimeChannel) {
-          try {
-            supabase.removeChannel(realtimeChannel);
-          } catch (e) {
-            console.error("Error removing existing channel:", e);
-          }
-        }
-
         console.log("Setting up realtime subscription for products...");
         const channel = supabase.channel('product-changes-' + new Date().getTime())
           .on('postgres_changes', 
@@ -197,42 +195,11 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
             })
           .subscribe((status: string) => {
             console.log(`Realtime subscription status: ${status}`);
-            
-            if (status === 'SUBSCRIBED') {
-              console.log('Successfully subscribed to real-time updates for products');
-              setSubscribed(true);
-              
-              // Clear any pending retry
-              if (errorRetryTimeout) {
-                clearTimeout(errorRetryTimeout);
-                errorRetryTimeout = null;
-              }
-              
-              // Clear any refresh interval since we're getting real-time updates
-              if (refreshInterval) {
-                clearInterval(refreshInterval);
-                refreshInterval = null;
-              }
-            } 
-            else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-              console.error(`Failed to subscribe to real-time updates: ${status}`);
-              setSubscribed(false);
-              
-              // Fall back to periodic refreshes if realtime subscription fails
-              if (!refreshInterval) {
-                console.log("Setting up periodic refresh fallback every 30 seconds");
-                refreshInterval = setInterval(() => {
-                  console.log("Performing scheduled refresh due to inactive realtime");
-                  fetchProducts();
-                }, 30000); // Refresh every 30 seconds
-              }
-            }
           });
         
         realtimeChannel = channel;
       } catch (error) {
         console.error('Error setting up realtime subscription:', error);
-        setSubscribed(false);
         
         // Fall back to periodic polling
         if (!refreshInterval) {
@@ -247,13 +214,12 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
     // Set up the initial subscription
     setupRealtimeSubscription();
 
-    // Set up a fallback interval refresh if realtime isn't active
+    // Set up a fallback interval refresh regardless of realtime success
+    // This ensures data is periodically refreshed even if realtime is working
     const fallbackInterval = setInterval(() => {
-      if (!subscribed) {
-        console.log("Performing fallback refresh due to inactive realtime");
-        fetchProducts();
-      }
-    }, 60000); // Every minute as a last resort
+      console.log("Performing periodic refresh");
+      fetchProducts();
+    }, 60000); // Every minute for guaranteed freshness
 
     // Clean up on component unmount
     return () => {
@@ -265,27 +231,13 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
         }
       }
       
-      if (errorRetryTimeout) {
-        clearTimeout(errorRetryTimeout);
-      }
-      
       if (refreshInterval) {
         clearInterval(refreshInterval);
       }
       
       clearInterval(fallbackInterval);
     };
-  }, [fetchProducts, subscribed]);
-
-  // Watch realtimeStatus prop to detect global connection issues
-  useEffect(() => {
-    if (realtimeStatus === 'CHANNEL_ERROR' || realtimeStatus === 'CLOSED' || realtimeStatus === 'error' || realtimeStatus === 'disconnected') {
-      if (subscribed) {
-        console.log("Global realtime connection issue detected, setting local subscribed state to false");
-        setSubscribed(false);
-      }
-    }
-  }, [realtimeStatus, subscribed]);
+  }, [fetchProducts, isSubscribed]); // Only re-run if fetchProducts or isSubscribed changes
 
   const handleDeleteProduct = async (id: string, name: string) => {
     if (window.confirm(`Are you sure you want to delete ${name}?`)) {
@@ -309,7 +261,7 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
         if (error) throw error;
         
         // If realtime is not working, update locally
-        if (!subscribed) {
+        if (!isSubscribed) {
           setProducts(prev => prev.filter(product => product.id !== id));
         }
         
@@ -370,7 +322,7 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
         </div>
       )}
       
-      {!subscribed && !loading && (
+      {!isSubscribed && !loading && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md p-4 mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
