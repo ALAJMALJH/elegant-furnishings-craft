@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -24,10 +23,11 @@ import {
   MoreVertical, 
   Eye, 
   Copy, 
-  AlertTriangle 
+  AlertTriangle,
+  RefreshCcw
 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, ensureAuthForProducts, refreshAdminSession } from '@/integrations/supabase/client';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 
 // Define the Product type
@@ -52,16 +52,54 @@ interface ProductListProps {
 const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
+      setAuthError(null);
+      
+      // Ensure authentication is set up before fetching products
+      const isAuthenticated = await ensureAuthForProducts();
+      if (!isAuthenticated) {
+        setAuthError("Authentication failed. Please refresh or log in again.");
+        setLoading(false);
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        // Check specifically for auth errors
+        if (error.message.includes('JWT') || error.message.includes('auth') || error.message.includes('permission')) {
+          console.error('Authentication error fetching products:', error);
+          setAuthError('Session expired. Trying to refresh authentication...');
+          
+          // Try to refresh the session
+          const refreshed = await refreshAdminSession();
+          if (refreshed) {
+            // Try fetching again after refresh
+            const { data: retryData, error: retryError } = await supabase
+              .from('products')
+              .select('*')
+              .order('created_at', { ascending: false });
+              
+            if (retryError) {
+              throw retryError;
+            }
+            
+            setProducts(retryData || []);
+            setAuthError(null);
+            return;
+          } else {
+            setAuthError('Authentication failed. Please refresh the page or log in again.');
+          }
+        }
+        throw error;
+      }
       
       setProducts(data || []);
     } catch (error) {
@@ -76,9 +114,14 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts }) =>
     }
   };
 
-  // Initial fetch
+  // Initialize auth and fetch on mount
   useEffect(() => {
-    fetchProducts();
+    const initializeAuth = async () => {
+      await ensureAuthForProducts();
+      fetchProducts();
+    };
+    
+    initializeAuth();
   }, []);
 
   // Set up real-time subscriptions
@@ -123,6 +166,17 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts }) =>
   const handleDeleteProduct = async (id: string, name: string) => {
     if (window.confirm(`Are you sure you want to delete ${name}?`)) {
       try {
+        // Ensure authentication before deleting
+        const isAuthenticated = await ensureAuthForProducts();
+        if (!isAuthenticated) {
+          toast({
+            title: 'Authentication error',
+            description: 'Could not authenticate to delete product. Please refresh and try again.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        
         const { error } = await supabase
           .from('products')
           .delete()
@@ -131,6 +185,10 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts }) =>
         if (error) throw error;
         
         // Real-time will handle the UI update
+        toast({
+          title: 'Product deleted',
+          description: `${name} has been successfully deleted.`,
+        });
       } catch (error) {
         console.error('Error deleting product:', error);
         toast({
@@ -154,6 +212,27 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts }) =>
 
   return (
     <div>
+      {authError && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md p-4 mb-4 flex items-center justify-between">
+          <div className="flex items-center">
+            <AlertTriangle className="h-5 w-5 mr-2 text-yellow-500" />
+            <span>{authError}</span>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={async () => {
+              await refreshAdminSession();
+              fetchProducts();
+            }}
+            className="ml-2"
+          >
+            <RefreshCcw className="h-4 w-4 mr-1" />
+            Refresh Session
+          </Button>
+        </div>
+      )}
+      
       <div className="rounded-md border">
         <Table>
           <TableHeader>

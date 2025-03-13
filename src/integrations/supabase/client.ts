@@ -90,7 +90,7 @@ export const ensureAuthForCollections = async (): Promise<boolean> => {
   }
 };
 
-// Check if the current user has a specific database role
+// Function to check if current user has a specific database role
 export const checkUserDatabaseRole = async (databaseRole: string): Promise<boolean> => {
   try {
     const userId = await getCurrentUserId();
@@ -215,59 +215,56 @@ export const canManageOrders = async (): Promise<boolean> => {
 // Function to ensure user session is valid for product operations specifically
 export const ensureAuthForProducts = async (): Promise<boolean> => {
   try {
+    // First verify if we already have an active session
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session) {
+      console.log("Found existing authenticated session for product operations:", session.user.id);
+      return true;
+    }
+    
+    console.log("No existing session found, attempting to create one for product operations");
+    
     // Check if we're in development mode
     const isDevelopment = process.env.NODE_ENV === 'development' || 
                           window.location.hostname === 'localhost' || 
                           window.location.hostname.includes('lovableproject.com');
     
-    console.log(`Environment check: ${isDevelopment ? 'Development' : 'Production'}`);
-    
-    // Check for existing session
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (session) {
-      console.log("Found existing authenticated session:", session);
-      return true;
-    }
-    
     if (isDevelopment) {
-      console.log("Development environment detected, creating admin bypass");
+      console.log("Development environment detected, creating admin session");
       
-      // Use the improved createDevAdminSession function from authUtils
+      // Create a specific admin session for product management
       const sessionCreated = await createDevAdminSession('admin', 'admin@ajmalfurniture.com');
-      if (sessionCreated) {
-        console.log("Successfully created development session via authUtils");
-        
-        // Verify the session was created correctly
-        const { data: { session: newSession } } = await supabase.auth.getSession();
-        if (newSession) {
-          console.log("Successfully verified new session:", newSession);
+      
+      // Verify the session was actually created
+      const { data: { session: verificationSession } } = await supabase.auth.getSession();
+      
+      if (verificationSession) {
+        console.log("Successfully verified admin session was created:", verificationSession.user.id);
+        return true;
+      }
+      
+      // If silent creation didn't work, try a more aggressive approach with anonymous auth
+      console.log("Session verification failed, trying anonymous auth as fallback");
+      try {
+        const { data, error } = await supabase.auth.signInAnonymously();
+        if (!error && data.session) {
+          console.log("Created anonymous session as fallback:", data.session.user.id);
+          
+          // Store user info in localStorage
+          localStorage.setItem('user', JSON.stringify({
+            id: data.session.user.id,
+            email: 'admin@ajmalfurniture.com',
+            role: 'admin',
+            isAuthenticated: true,
+            lastLogin: new Date().toISOString(),
+            authProvider: 'anonymous'
+          }));
+          
           return true;
-        } else {
-          console.log("Session verification failed, manual check required");
-          
-          // Check if we have at least stored the user in localStorage
-          const userString = localStorage.getItem('user');
-          if (userString) {
-            const user = JSON.parse(userString);
-            console.log("User found in localStorage:", user);
-            if (user.isAuthenticated) {
-              return true;
-            }
-          }
-          
-          // As a last resort, create a manual anonymous authenticated session
-          // This will only work for RLS policies that don't check the user ID
-          try {
-            const { data, error } = await supabase.auth.signInAnonymously();
-            if (!error && data.session) {
-              console.log("Created anonymous session as last resort");
-              return true;
-            }
-          } catch (anonError) {
-            console.error("Failed to create anonymous session:", anonError);
-          }
         }
+      } catch (anonError) {
+        console.error("Failed to create anonymous session:", anonError);
       }
     }
     
@@ -275,10 +272,13 @@ export const ensureAuthForProducts = async (): Promise<boolean> => {
     const userString = localStorage.getItem('user');
     if (userString) {
       const user = JSON.parse(userString);
-      return !!user.isAuthenticated;
+      if (user.isAuthenticated) {
+        console.log("Using localStorage authentication as final fallback");
+        return true;
+      }
     }
     
-    console.error("No authentication method succeeded");
+    console.error("All authentication methods failed for product operations");
     return false;
   } catch (error) {
     console.error('Error in ensureAuthForProducts:', error);
