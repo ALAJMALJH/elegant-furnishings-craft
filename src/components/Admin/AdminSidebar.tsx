@@ -1,9 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   BarChart3, 
-  Package, 
   Users, 
   DollarSign, 
   Tag, 
@@ -28,7 +26,6 @@ import {
 
 const navigationItems = [
   { name: 'Dashboard', path: '/admin/dashboard', icon: Home },
-  { name: 'Products', path: '/admin/products', icon: Package },
   { name: 'Sales', path: '/admin/sales', icon: DollarSign },
   { name: 'Customers', path: '/admin/customers', icon: Users },
   { name: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
@@ -55,7 +52,6 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ isMobile, setMobileMenuOpen
   const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
   const [unreadCount, setUnreadCount] = useState(MOCK_NOTIFICATIONS.length);
   
-  // Get current user
   const userString = localStorage.getItem('user');
   const user = userString ? JSON.parse(userString) : null;
   
@@ -71,17 +67,14 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ isMobile, setMobileMenuOpen
   const handleReadNotification = (id: string) => {
     setUnreadCount(prevCount => Math.max(0, prevCount - 1));
     
-    // Mark as read (in a real app, you would update this in your database)
     toast({
       title: "Notification marked as read",
       description: "The notification has been marked as read",
     });
   };
   
-  // Simulate receiving a new notification
   useEffect(() => {
     const interval = setInterval(() => {
-      // 10% chance of receiving a new notification every 30 seconds
       if (Math.random() < 0.1) {
         const types = ['low_stock', 'new_order', 'customer_message', 'website_status'];
         const type = types[Math.floor(Math.random() * types.length)];
@@ -200,12 +193,6 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ isMobile, setMobileMenuOpen
               <Icon className="w-5 h-5 mr-3 shrink-0" />
               {item.name}
               
-              {/* Show indicators for certain sections */}
-              {item.name === 'Products' && (
-                <Badge variant="outline" className="ml-auto bg-yellow-50 text-yellow-600 border-yellow-200">
-                  2 low
-                </Badge>
-              )}
               {item.name === 'Sales' && (
                 <Badge variant="outline" className="ml-auto bg-green-50 text-green-600 border-green-200">
                   3 new

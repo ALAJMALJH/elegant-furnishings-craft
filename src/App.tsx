@@ -29,7 +29,6 @@ import Auth from "./pages/Auth";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 import AdminLayout from "./components/Admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
-import Products from "./pages/admin/Products";
 import Sales from "./pages/admin/Sales";
 import Customers from "./pages/admin/Customers";
 import Analytics from "./pages/admin/Analytics";
@@ -80,7 +79,7 @@ const App = () => (
             <Route path="/admin" element={<ProtectedRoute />}>
               <Route element={<AdminLayout />}>
                 <Route path="dashboard" element={<Dashboard />} />
-                <Route path="products" element={<Products />} />
+                {/* Removed Products route */}
                 <Route path="sales" element={<Sales />} />
                 <Route path="customers" element={<Customers />} />
                 <Route path="analytics" element={<Analytics />} />

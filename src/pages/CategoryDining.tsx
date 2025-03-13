@@ -35,86 +35,6 @@ const diningSubcategories = [
   }
 ];
 
-const diningProducts = [
-  {
-    id: "dn-table-1",
-    name: "8-Seater Marble Dining Table",
-    price: 9999,
-    originalPrice: 12999,
-    image: "https://images.unsplash.com/photo-1615874959474-d609969a20ed",
-    category: "dining",
-    subcategory: "dining-tables",
-    badge: "Bestseller"
-  },
-  {
-    id: "dn-table-2",
-    name: "6-Seater Solid Wood Table",
-    price: 6499,
-    image: "https://images.unsplash.com/photo-1580480055273-228ff5388ef8",
-    category: "dining",
-    subcategory: "dining-tables",
-    badge: "New"
-  },
-  {
-    id: "dn-chair-1",
-    name: "Upholstered Dining Chair (Set of 2)",
-    price: 2699,
-    image: "https://images.unsplash.com/photo-1604578762246-41134e37f9cc",
-    category: "dining",
-    subcategory: "dining-chairs"
-  },
-  {
-    id: "dn-bench-1",
-    name: "Dining Bench with Cushion",
-    price: 2299,
-    originalPrice: 2799,
-    image: "https://images.unsplash.com/photo-1588208333207-38783a2f3c06",
-    category: "dining",
-    subcategory: "dining-chairs"
-  },
-  {
-    id: "dn-sideboard-1",
-    name: "Modern Sideboard",
-    price: 5199,
-    image: "https://images.unsplash.com/photo-1595428774223-ef52624120d2",
-    category: "dining",
-    subcategory: "sideboards"
-  },
-  {
-    id: "dn-buffet-1",
-    name: "Glass Door Buffet",
-    price: 4799,
-    image: "https://images.unsplash.com/photo-1594026112284-02bb6f3352fe",
-    category: "dining",
-    subcategory: "sideboards",
-    badge: "Limited"
-  },
-  {
-    id: "dn-stool-1",
-    name: "Leather Bar Stool (Set of 2)",
-    price: 2399,
-    image: "https://images.unsplash.com/photo-1610099917789-a87f5c2ba057",
-    category: "dining",
-    subcategory: "bar-stools"
-  },
-  {
-    id: "dn-display-1",
-    name: "Glass Display Cabinet",
-    price: 6299,
-    image: "https://images.unsplash.com/photo-1594026112284-02bb6f3352fe",
-    category: "dining",
-    subcategory: "display-cabinets"
-  },
-  {
-    id: "dn-stool-2",
-    name: "Adjustable Height Bar Stool",
-    price: 1799,
-    image: "https://images.unsplash.com/photo-1593111774240-d529f12cf4bb",
-    category: "dining",
-    subcategory: "bar-stools"
-  }
-];
-
 const diningReviews = [
   {
     id: 1,
@@ -185,7 +105,7 @@ const CategoryDining = () => {
         image: "https://images.unsplash.com/photo-1554995207-c18c203602cb"
       }}
       subcategories={diningSubcategories}
-      featuredProducts={diningProducts}
+      featuredProducts={[]} // Empty array for products
       reviews={diningReviews}
       blogPosts={diningBlogPosts}
       customSectionTitle="Dine in Style with Custom Crafted Furniture"

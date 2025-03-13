@@ -35,86 +35,6 @@ const bedroomSubcategories = [
   }
 ];
 
-const bedroomProducts = [
-  {
-    id: "br-bed-1",
-    name: "Luxury King Bed Frame",
-    price: 7999,
-    originalPrice: 9999,
-    image: "https://images.unsplash.com/photo-1505693314120-0d443867891c",
-    category: "bedroom",
-    subcategory: "beds",
-    badge: "Bestseller"
-  },
-  {
-    id: "br-bed-2",
-    name: "Queen Platform Bed",
-    price: 5499,
-    image: "https://images.unsplash.com/photo-1617325247661-675ab4b64b2a",
-    category: "bedroom",
-    subcategory: "beds",
-    badge: "New"
-  },
-  {
-    id: "br-nightstand-1",
-    name: "Marble Top Nightstand",
-    price: 1699,
-    image: "https://images.unsplash.com/photo-1591079381491-cb2c15f58261",
-    category: "bedroom",
-    subcategory: "nightstands"
-  },
-  {
-    id: "br-nightstand-2",
-    name: "Oak Wood Side Table",
-    price: 1299,
-    originalPrice: 1799,
-    image: "https://images.unsplash.com/photo-1532372320572-cda25653a694",
-    category: "bedroom",
-    subcategory: "nightstands"
-  },
-  {
-    id: "br-wardrobe-1",
-    name: "3-Door Wardrobe",
-    price: 6199,
-    image: "https://images.unsplash.com/photo-1610099917789-a87f5c2ba057",
-    category: "bedroom",
-    subcategory: "wardrobes"
-  },
-  {
-    id: "br-dresser-1",
-    name: "6-Drawer Dresser",
-    price: 4299,
-    image: "https://images.unsplash.com/photo-1595428774223-ef52624120d2",
-    category: "bedroom",
-    subcategory: "wardrobes",
-    badge: "Limited"
-  },
-  {
-    id: "br-vanity-1",
-    name: "Modern Vanity Set",
-    price: 3799,
-    image: "https://images.unsplash.com/photo-1576188973526-0e5765ef35d9",
-    category: "bedroom",
-    subcategory: "vanity"
-  },
-  {
-    id: "br-bench-1",
-    name: "Upholstered Bench",
-    price: 1899,
-    image: "https://images.unsplash.com/photo-1503174971373-b1f69850bded",
-    category: "bedroom",
-    subcategory: "benches"
-  },
-  {
-    id: "br-ottoman-1",
-    name: "Storage Ottoman",
-    price: 1299,
-    image: "https://images.unsplash.com/photo-1543248939-4296e1fea290",
-    category: "bedroom",
-    subcategory: "benches"
-  }
-];
-
 const bedroomReviews = [
   {
     id: 1,
@@ -185,7 +105,7 @@ const CategoryBedroom = () => {
         image: "https://images.unsplash.com/photo-1616593969747-4797dc75033e"
       }}
       subcategories={bedroomSubcategories}
-      featuredProducts={bedroomProducts}
+      featuredProducts={[]} // Empty array for products
       reviews={bedroomReviews}
       blogPosts={bedroomBlogPosts}
       customSectionTitle="Your Dream Bedroom, Tailored to Perfection"

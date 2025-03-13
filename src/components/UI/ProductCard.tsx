@@ -1,7 +1,6 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { Heart, ShoppingCart, Eye } from "lucide-react";
-import { useCart } from '../Cart/CartContext';
+
+import React from "react";
+import { ShoppingBag } from "lucide-react";
 
 interface ProductCardProps {
   id: string;
@@ -15,34 +14,15 @@ interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({
-  id,
   name,
-  price,
   image,
   category,
   badge,
-  originalPrice,
   delay = 0,
 }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const { addToCart } = useCart();
-  
-  const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
-  
-  const handleAddToCart = () => {
-    addToCart({
-      id,
-      name,
-      price,
-      image_url: image,
-    });
-  };
-
   return (
     <div 
       className="group relative bg-white rounded-lg overflow-hidden custom-shadow"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       style={{ 
         animationDelay: `${delay}ms`,
         opacity: 0,
@@ -52,70 +32,43 @@ const ProductCard: React.FC<ProductCardProps> = ({
       {/* Badge */}
       {badge && (
         <div className="absolute top-4 left-4 z-10">
-          <span className={`text-xs font-medium py-1 px-3 rounded ${
-            badge === "Bestseller" 
-              ? "bg-amber-500 text-white" 
-              : badge === "New" 
-              ? "bg-emerald-500 text-white" 
-              : badge === "Limited" 
-              ? "bg-rose-500 text-white"
-              : "bg-furniture-accent text-furniture-dark"
-          }`}>
+          <span className={`text-xs font-medium py-1 px-3 rounded bg-gray-500 text-white`}>
             {badge}
           </span>
         </div>
       )}
       
       {/* Image */}
-      <Link to={`/product/${id}`} className="block image-hover-zoom">
+      <div className="block image-hover-zoom">
         <img
           src={image}
           alt={name}
-          className="w-full h-64 object-cover transition-transform duration-500"
+          className="w-full h-64 object-cover transition-transform duration-500 opacity-50"
         />
-      </Link>
-      
-      {/* Quick Actions */}
-      <div className={`absolute right-4 top-4 flex flex-col space-y-2 transition-all duration-300 ${
-        isHovered ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4"
-      }`}>
-        <button className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-furniture-accent transition-colors">
-          <Heart size={18} className="text-furniture-dark" />
-        </button>
-        <button className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-furniture-accent transition-colors">
-          <Eye size={18} className="text-furniture-dark" />
-        </button>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="bg-white/80 px-4 py-2 rounded text-furniture-dark font-medium">
+            Currently Unavailable
+          </span>
+        </div>
       </div>
       
       {/* Content */}
       <div className="p-5">
         <span className="text-xs text-furniture-accent2 uppercase tracking-wider">{category}</span>
-        <Link to={`/product/${id}`}>
-          <h3 className="mt-1 font-playfair text-lg font-medium hover:text-furniture-accent transition-colors">
-            {name}
-          </h3>
-        </Link>
+        <h3 className="mt-1 font-playfair text-lg font-medium text-gray-500">
+          {name}
+        </h3>
         
         <div className="flex items-center mt-2">
-          <span className="font-medium text-lg">AED {price.toLocaleString()}</span>
-          {originalPrice && (
-            <span className="ml-2 text-sm text-gray-400 line-through">
-              AED {originalPrice.toLocaleString()}
-            </span>
-          )}
-          {discount > 0 && (
-            <span className="ml-auto text-xs bg-furniture-muted text-furniture-accent2 px-2 py-0.5 rounded">
-              Save {discount}%
-            </span>
-          )}
+          <span className="font-medium text-lg text-gray-400">Currently Unavailable</span>
         </div>
         
         <button 
-          onClick={handleAddToCart}
-          className="mt-4 w-full py-2.5 bg-furniture-dark text-white flex items-center justify-center rounded hover:bg-furniture-accent hover:text-furniture-dark transition-colors duration-300"
+          disabled
+          className="mt-4 w-full py-2.5 bg-gray-300 text-gray-600 flex items-center justify-center rounded cursor-not-allowed"
         >
-          <ShoppingCart size={18} className="mr-2" />
-          Add to Cart
+          <ShoppingBag size={18} className="mr-2" />
+          Unavailable
         </button>
       </div>
     </div>
