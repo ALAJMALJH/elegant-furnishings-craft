@@ -72,7 +72,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from '@/components/ui/use-toast';
-import { supabase, canManageProducts } from '@/integrations/supabase/client';
+import { supabase, canManageProducts, ensureAuthForCollections } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { ProductVariant, ProductCollection, Json } from '@/components/Admin/Discounts/types';
@@ -236,28 +236,7 @@ const Products: React.FC = () => {
           variant: "destructive",
         });
       } else {
-        const { data: authData } = await supabase.auth.getUser();
-        if (!authData?.user) {
-          console.log('User has permissions but is not authenticated with Supabase');
-          
-          const demoEmail = 'admin@ajmalfurniture.com';
-          const demoPassword = 'password123';
-          
-          try {
-            const { error } = await supabase.auth.signInWithPassword({
-              email: demoEmail,
-              password: demoPassword
-            });
-            
-            if (error) {
-              console.error('Error signing in:', error);
-            } else {
-              console.log('Signed in successfully with demo account');
-            }
-          } catch (e) {
-            console.error('Failed to sign in:', e);
-          }
-        }
+        await ensureAuthForCollections();
       }
     };
     
@@ -351,8 +330,8 @@ const Products: React.FC = () => {
     try {
       setIsLoading(true);
       
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData?.user) {
+      const isAuthenticated = await ensureAuthForCollections();
+      if (!isAuthenticated) {
         throw new Error('You must be authenticated to save products');
       }
       
