@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Lock, UserCircle2, AlertCircle } from 'lucide-react';
+import { Lock, UserCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { getRoleFromEmail } from '@/components/Auth/ProtectedRoute';
 
 // Demo admin accounts for each role
