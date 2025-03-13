@@ -10,7 +10,8 @@ import {
   LogOut, 
   Home,
   Bell,
-  Layers
+  Layers,
+  Package
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ const navigationItems = [
   { name: 'Dashboard', path: '/admin/dashboard', icon: Home },
   { name: 'Sales', path: '/admin/sales', icon: DollarSign },
   { name: 'Customers', path: '/admin/customers', icon: Users },
+  { name: 'Products', path: '/admin/products', icon: Package },
   { name: 'Collections', path: '/admin/collections', icon: Layers },
   { name: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
   { name: 'Discounts', path: '/admin/discounts', icon: Tag },

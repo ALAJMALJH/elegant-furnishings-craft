@@ -35,6 +35,7 @@ import Discounts from "./pages/admin/Discounts";
 import Settings from "./pages/admin/Settings";
 import AdminCartCheck from "./pages/admin/CartCheck";
 import CollectionsPage from './pages/admin/Collections';
+import ProductsPage from './pages/admin/Products';
 
 // Create a client for react-query with retry settings
 const queryClient = new QueryClient({
@@ -81,6 +82,7 @@ const App = () => (
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="sales" element={<Sales />} />
                 <Route path="customers" element={<Customers />} />
+                <Route path="products" element={<ProductsPage />} />
                 <Route path="collections" element={<CollectionsPage />} />
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="discounts" element={<Discounts />} />
