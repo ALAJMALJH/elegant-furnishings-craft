@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { 
@@ -15,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ProductList } from '@/components/Admin/ProductList';
+import ProductList from '@/components/Admin/ProductList';
 import { useToast } from '@/components/ui/use-toast';
 
 const ProductsPage = () => {
@@ -124,9 +123,8 @@ const ProductsPage = () => {
               </CardHeader>
               <CardContent>
                 <ProductList 
-                  selectedProducts={selectedProducts}
-                  onProductsChange={setSelectedProducts}
-                  searchQuery={searchQuery}
+                  onEdit={(product) => toast({ title: "Edit Product", description: `Editing ${product.name}` })}
+                  refreshProducts={() => toast({ title: "Refreshing Products", description: "Products refreshed" })}
                 />
               </CardContent>
             </Card>
