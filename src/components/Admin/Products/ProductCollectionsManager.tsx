@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
-import { supabase, canManageProducts, refreshAdminSession } from '@/integrations/supabase/client';
+import { supabase, refreshAdminSession } from '@/integrations/supabase/client';
 import { ImageUploader } from './ImageUploader';
 
 interface ProductCollection {
@@ -40,7 +40,6 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
   const [newCollectionDescription, setNewCollectionDescription] = useState('');
   const [newCollectionImage, setNewCollectionImage] = useState('');
   const [editingCollection, setEditingCollection] = useState<ProductCollection | null>(null);
-  const [hasPermission, setHasPermission] = useState(false);
 
   useEffect(() => {
     // Listen for real-time collection updates
@@ -51,34 +50,19 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
     
     window.addEventListener('collection_updated', handleCollectionUpdate);
     
-    // Check permissions on component mount
-    checkPermissions();
+    // Fetch collections on component mount
+    fetchCollections();
     
     return () => {
       window.removeEventListener('collection_updated', handleCollectionUpdate);
     };
   }, []);
 
-  const checkPermissions = async () => {
-    const hasPermission = await canManageProducts();
-    setHasPermission(hasPermission);
-    
-    if (!hasPermission) {
-      toast({
-        title: "Permission Error",
-        description: "You don't have permission to manage product collections. Please log in with an administrator account.",
-        variant: "destructive",
-      });
-    }
-    
-    fetchCollections();
-  };
-
   const fetchCollections = async () => {
     try {
       setIsLoading(true);
       
-      // Refresh admin session if needed
+      // Refresh session if needed
       await refreshAdminSession();
       
       const { data, error } = await supabase
@@ -138,13 +122,6 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
       
       if (error) {
         console.error("Supabase error:", error);
-        
-        if (error.message.includes('violates row-level security policy')) {
-          throw new Error(
-            "You don't have permission to create collections. Please ensure you're logged in with an administrator account."
-          );
-        }
-        
         throw error;
       }
 
@@ -194,13 +171,6 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
       
       if (error) {
         console.error("Supabase error:", error);
-        
-        if (error.message.includes('violates row-level security policy')) {
-          throw new Error(
-            "You don't have permission to update collections. Please ensure you're logged in with an administrator account."
-          );
-        }
-        
         throw error;
       }
 
@@ -244,13 +214,6 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
       
       if (error) {
         console.error("Supabase error:", error);
-        
-        if (error.message.includes('violates row-level security policy')) {
-          throw new Error(
-            "You don't have permission to delete collections. Please ensure you're logged in with an administrator account."
-          );
-        }
-        
         throw error;
       }
 
@@ -302,20 +265,6 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
   const cancelEditing = () => {
     setEditingCollection(null);
   };
-
-  if (!hasPermission) {
-    return (
-      <div className="p-6 bg-muted/50 rounded-lg text-center">
-        <h3 className="text-lg font-medium mb-2">Access Restricted</h3>
-        <p className="text-muted-foreground mb-4">
-          You need administrator permissions to manage product collections.
-        </p>
-        <Button variant="default" onClick={checkPermissions}>
-          Check Permissions Again
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
