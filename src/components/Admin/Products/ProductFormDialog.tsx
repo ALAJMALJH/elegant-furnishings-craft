@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -227,6 +226,7 @@ const ProductFormDialog: React.FC<ProductFormDialogProps> = ({
   const onSubmit = async (values: ProductFormValues) => {
     try {
       setIsSubmitting(true);
+      console.log("Submitting product data:", values);
       
       // Generate URL slug if not provided
       if (!values.url_slug) {
@@ -254,7 +254,6 @@ const ProductFormDialog: React.FC<ProductFormDialogProps> = ({
             price: values.price,
             discount_price: values.discount_price,
             sku: values.sku,
-            brand: values.brand,
             category: values.category,
             subcategory: values.subcategory,
             stock_quantity: values.stock_quantity,
@@ -287,7 +286,6 @@ const ProductFormDialog: React.FC<ProductFormDialogProps> = ({
             price: values.price,
             discount_price: values.discount_price,
             sku: values.sku || `PROD-${Date.now()}`,
-            brand: values.brand,
             category: values.category,
             subcategory: values.subcategory,
             stock_quantity: values.stock_quantity,
@@ -416,6 +414,9 @@ const ProductFormDialog: React.FC<ProductFormDialogProps> = ({
                         <FormControl>
                           <Input {...field} placeholder="Ajmal Furniture" />
                         </FormControl>
+                        <FormDescription>
+                          Brand information (for reference only)
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
