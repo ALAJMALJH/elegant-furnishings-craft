@@ -16,20 +16,10 @@ import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Lock, UserCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { getRoleFromEmail } from '@/components/Auth/ProtectedRoute';
+import { handleAdminLogin, getDemoAdminAccounts } from '@/components/Auth/authUtils';
 
 // Demo admin accounts for each role
-const DEMO_ADMINS = [
-  { email: 'ceo@ajmalfurniture.com', password: 'ceo123', role: 'ceo', displayName: 'CEO' },
-  { email: 'cto@ajmalfurniture.com', password: 'cto123', role: 'cto', displayName: 'CTO' },
-  { email: 'manager@ajmalfurniture.com', password: 'manager123', role: 'manager', displayName: 'Store Manager' },
-  { email: 'sales@ajmalfurniture.com', password: 'sales123', role: 'sales', displayName: 'Sales Team' },
-  { email: 'support@ajmalfurniture.com', password: 'support123', role: 'support', displayName: 'Support Team' },
-  { email: 'hr@ajmalfurniture.com', password: 'hr123', role: 'hr', displayName: 'HR Manager' },
-  { email: 'marketing@ajmalfurniture.com', password: 'marketing123', role: 'marketing', displayName: 'Marketing Team' },
-  { email: 'finance@ajmalfurniture.com', password: 'finance123', role: 'finance', displayName: 'Finance Department' },
-  { email: 'operations@ajmalfurniture.com', password: 'operations123', role: 'operations', displayName: 'Operations Manager' },
-  { email: 'admin@ajmalfurniture.com', password: 'admin123', role: 'admin', displayName: 'System Admin' },
-];
+const DEMO_ADMINS = getDemoAdminAccounts();
 
 const LoginForm = () => {
   const navigate = useNavigate();
@@ -90,81 +80,18 @@ const LoginForm = () => {
     setError('');
     
     try {
-      // First try to authenticate with Supabase
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
+      const result = await handleAdminLogin(formData.email, formData.password);
       
-      if (authData.user) {
-        console.log("Successfully authenticated with Supabase:", authData.user);
-        
-        // Get role from email
-        const role = getRoleFromEmail(authData.user.email || '');
-        
-        // Store user info in localStorage
-        localStorage.setItem('user', JSON.stringify({
-          id: authData.user.id,
-          email: authData.user.email,
-          displayName: getDisplayName(authData.user.email || ''),
-          role: role,
-          isAuthenticated: true,
-          lastLogin: new Date().toISOString(),
-          authProvider: 'supabase'
-        }));
-        
-        // Log successful login
-        await logPageVisit(authData.user.email || '', 'supabase_auth');
-        
+      if (result.success) {
         toast({
           title: "Login successful",
-          description: `Welcome back, ${getDisplayName(authData.user.email || '')}!`,
+          description: `Welcome back!`,
         });
         
         navigate('/admin/dashboard');
-        return;
+      } else {
+        throw new Error(result.message);
       }
-      
-      if (authError) {
-        console.log("Supabase auth failed, trying demo accounts:", authError);
-      }
-      
-      // Fall back to demo accounts
-      const admin = DEMO_ADMINS.find(
-        admin => admin.email === formData.email && admin.password === formData.password
-      );
-      
-      if (!admin) {
-        throw new Error('Invalid email or password');
-      }
-      
-      // Log successful login
-      await logPageVisit(admin.email, 'demo_auth');
-      
-      // Get role from email
-      const role = getRoleFromEmail(admin.email);
-      
-      // Set user in localStorage 
-      // In a real app, this would be handled by Supabase Auth tokens
-      localStorage.setItem('user', JSON.stringify({
-        id: `demo-${admin.email}`,
-        email: admin.email,
-        displayName: admin.displayName,
-        role: role,
-        isAuthenticated: true,
-        lastLogin: new Date().toISOString(),
-        authProvider: 'demo'
-      }));
-      
-      // Show success toast
-      toast({
-        title: "Login successful",
-        description: `Welcome back, ${admin.displayName}!`,
-      });
-      
-      // Navigate to dashboard
-      navigate('/admin/dashboard');
-      
     } catch (err: any) {
       setError(err.message);
       toast({
@@ -174,30 +101,6 @@ const LoginForm = () => {
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-  
-  const getDisplayName = (email: string): string => {
-    const admin = DEMO_ADMINS.find(a => a.email === email);
-    if (admin) return admin.displayName;
-    
-    // Else generate a display name from the email
-    const name = email.split('@')[0];
-    return name.charAt(0).toUpperCase() + name.slice(1);
-  };
-  
-  const logPageVisit = async (email: string, source: string) => {
-    try {
-      await supabase
-        .from('page_visits')
-        .insert([{ 
-          page_path: '/auth', 
-          visitor_id: `admin_${email}`,
-          source: source,
-          user_agent: navigator.userAgent
-        }]);
-    } catch (logError) {
-      console.error('Error logging visit:', logError);
     }
   };
 
