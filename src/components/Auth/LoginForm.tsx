@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Card, 
@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Lock, UserCircle2 } from 'lucide-react';
+import { Lock, UserCircle2, AlertCircle } from 'lucide-react';
 import { getRoleFromEmail } from '@/components/Auth/ProtectedRoute';
 
 // Demo admin accounts for each role
@@ -39,6 +39,44 @@ const LoginForm = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    // Check if user is already logged in
+    const checkAuth = async () => {
+      try {
+        // First check Supabase auth
+        const { data } = await supabase.auth.getSession();
+        
+        if (data.session) {
+          console.log("User already authenticated with Supabase:", data.session);
+          navigate('/admin/dashboard');
+          return;
+        }
+        
+        // Then check local storage as fallback
+        const userString = localStorage.getItem('user');
+        const user = userString ? JSON.parse(userString) : null;
+        
+        if (user && user.isAuthenticated) {
+          console.log("User already authenticated via localStorage:", user);
+          
+          // Validate the stored user information
+          if (user.email && user.role) {
+            navigate('/admin/dashboard');
+            return;
+          }
+        }
+        
+        setAuthChecked(true);
+      } catch (err) {
+        console.error("Error checking authentication:", err);
+        setAuthChecked(true);
+      }
+    };
+    
+    checkAuth();
+  }, [navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -52,8 +90,46 @@ const LoginForm = () => {
     setError('');
     
     try {
-      // In a real app, you would authenticate with Supabase Auth
-      // For demo, we'll use local check against demo accounts
+      // First try to authenticate with Supabase
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+      
+      if (authData.user) {
+        console.log("Successfully authenticated with Supabase:", authData.user);
+        
+        // Get role from email
+        const role = getRoleFromEmail(authData.user.email || '');
+        
+        // Store user info in localStorage
+        localStorage.setItem('user', JSON.stringify({
+          id: authData.user.id,
+          email: authData.user.email,
+          displayName: getDisplayName(authData.user.email || ''),
+          role: role,
+          isAuthenticated: true,
+          lastLogin: new Date().toISOString(),
+          authProvider: 'supabase'
+        }));
+        
+        // Log successful login
+        await logPageVisit(authData.user.email || '', 'supabase_auth');
+        
+        toast({
+          title: "Login successful",
+          description: `Welcome back, ${getDisplayName(authData.user.email || '')}!`,
+        });
+        
+        navigate('/admin/dashboard');
+        return;
+      }
+      
+      if (authError) {
+        console.log("Supabase auth failed, trying demo accounts:", authError);
+      }
+      
+      // Fall back to demo accounts
       const admin = DEMO_ADMINS.find(
         admin => admin.email === formData.email && admin.password === formData.password
       );
@@ -62,23 +138,10 @@ const LoginForm = () => {
         throw new Error('Invalid email or password');
       }
       
-      // Log successful login attempt (in a real app, this would be tracked in a secure way)
-      try {
-        await supabase
-          .from('page_visits')
-          .insert([
-            { 
-              page_path: '/auth', 
-              visitor_id: `admin_${admin.email}`,
-              source: 'admin_login',
-              user_agent: navigator.userAgent
-            }
-          ]);
-      } catch (logError) {
-        console.error('Error logging visit:', logError);
-      }
+      // Log successful login
+      await logPageVisit(admin.email, 'demo_auth');
       
-      // Get role from email (this would normally come from the database)
+      // Get role from email
       const role = getRoleFromEmail(admin.email);
       
       // Set user in localStorage 
@@ -90,6 +153,7 @@ const LoginForm = () => {
         role: role,
         isAuthenticated: true,
         lastLogin: new Date().toISOString(),
+        authProvider: 'demo'
       }));
       
       // Show success toast
@@ -112,6 +176,43 @@ const LoginForm = () => {
       setIsLoading(false);
     }
   };
+  
+  const getDisplayName = (email: string): string => {
+    const admin = DEMO_ADMINS.find(a => a.email === email);
+    if (admin) return admin.displayName;
+    
+    // Else generate a display name from the email
+    const name = email.split('@')[0];
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  };
+  
+  const logPageVisit = async (email: string, source: string) => {
+    try {
+      await supabase
+        .from('page_visits')
+        .insert([{ 
+          page_path: '/auth', 
+          visitor_id: `admin_${email}`,
+          source: source,
+          user_agent: navigator.userAgent
+        }]);
+    } catch (logError) {
+      console.error('Error logging visit:', logError);
+    }
+  };
+
+  if (!authChecked) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardContent className="flex justify-center items-center py-10">
+          <div className="animate-spin">
+            <RefreshCw className="h-6 w-6 text-primary" />
+          </div>
+          <span className="ml-2">Checking authentication...</span>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md">
@@ -158,8 +259,9 @@ const LoginForm = () => {
             </div>
             
             {error && (
-              <div className="p-3 rounded-md bg-red-50 text-red-700 text-sm">
-                {error}
+              <div className="p-3 rounded-md bg-red-50 text-red-700 text-sm flex items-start">
+                <AlertCircle className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
               </div>
             )}
             

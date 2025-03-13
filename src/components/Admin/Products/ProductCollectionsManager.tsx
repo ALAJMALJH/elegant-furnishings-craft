@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, canManageProducts, refreshAdminSession } from '@/integrations/supabase/client';
 import { ImageUploader } from './ImageUploader';
 
 interface ProductCollection {
@@ -40,10 +40,46 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
   const [newCollectionDescription, setNewCollectionDescription] = useState('');
   const [newCollectionImage, setNewCollectionImage] = useState('');
   const [editingCollection, setEditingCollection] = useState<ProductCollection | null>(null);
+  const [hasPermission, setHasPermission] = useState(false);
+
+  useEffect(() => {
+    // Listen for real-time collection updates
+    const handleCollectionUpdate = () => {
+      console.log("Collection updated event received, refreshing...");
+      fetchCollections();
+    };
+    
+    window.addEventListener('collection_updated', handleCollectionUpdate);
+    
+    // Check permissions on component mount
+    checkPermissions();
+    
+    return () => {
+      window.removeEventListener('collection_updated', handleCollectionUpdate);
+    };
+  }, []);
+
+  const checkPermissions = async () => {
+    const hasPermission = await canManageProducts();
+    setHasPermission(hasPermission);
+    
+    if (!hasPermission) {
+      toast({
+        title: "Permission Error",
+        description: "You don't have permission to manage product collections. Please log in with an administrator account.",
+        variant: "destructive",
+      });
+    }
+    
+    fetchCollections();
+  };
 
   const fetchCollections = async () => {
     try {
       setIsLoading(true);
+      
+      // Refresh admin session if needed
+      await refreshAdminSession();
       
       const { data, error } = await supabase
         .from('product_collections')
@@ -67,10 +103,6 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
     }
   };
 
-  useEffect(() => {
-    fetchCollections();
-  }, []);
-
   const addCollection = async () => {
     if (!newCollectionName.trim()) {
       toast({
@@ -84,14 +116,10 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
     try {
       setIsLoading(true);
       
-      // First check if user is authenticated
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user) {
-        // Try to use the session storage authentication as fallback
-        const sessionUser = localStorage.getItem('user');
-        if (!sessionUser) {
-          throw new Error('Authentication required to create collections');
-        }
+      // Ensure user is authenticated
+      const isLoggedIn = await refreshAdminSession();
+      if (!isLoggedIn) {
+        throw new Error('Authentication required to create collections. Please log in again.');
       }
       
       const newCollection = {
@@ -100,6 +128,8 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
         image_url: newCollectionImage || null,
       };
 
+      console.log("Adding collection:", newCollection);
+      
       const { data, error } = await supabase
         .from('product_collections')
         .insert([newCollection])
@@ -107,6 +137,14 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
         .single();
       
       if (error) {
+        console.error("Supabase error:", error);
+        
+        if (error.message.includes('violates row-level security policy')) {
+          throw new Error(
+            "You don't have permission to create collections. Please ensure you're logged in with an administrator account."
+          );
+        }
+        
         throw error;
       }
 
@@ -135,18 +173,34 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
     try {
       setIsLoading(true);
       
+      // Ensure user is authenticated
+      const isLoggedIn = await refreshAdminSession();
+      if (!isLoggedIn) {
+        throw new Error('Authentication required to update collections. Please log in again.');
+      }
+      
       const updatedCollection = {
         name: editingCollection.name,
         description: editingCollection.description,
         image_url: editingCollection.image_url,
       };
 
+      console.log("Updating collection:", updatedCollection);
+      
       const { error } = await supabase
         .from('product_collections')
         .update(updatedCollection)
         .eq('id', editingCollection.id);
       
       if (error) {
+        console.error("Supabase error:", error);
+        
+        if (error.message.includes('violates row-level security policy')) {
+          throw new Error(
+            "You don't have permission to update collections. Please ensure you're logged in with an administrator account."
+          );
+        }
+        
         throw error;
       }
 
@@ -164,6 +218,59 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
       toast({
         title: "Error",
         description: err.message || "Failed to update collection",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteCollection = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this collection?")) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Ensure user is authenticated
+      const isLoggedIn = await refreshAdminSession();
+      if (!isLoggedIn) {
+        throw new Error('Authentication required to delete collections. Please log in again.');
+      }
+      
+      const { error } = await supabase
+        .from('product_collections')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error("Supabase error:", error);
+        
+        if (error.message.includes('violates row-level security policy')) {
+          throw new Error(
+            "You don't have permission to delete collections. Please ensure you're logged in with an administrator account."
+          );
+        }
+        
+        throw error;
+      }
+
+      toast({
+        title: "Success",
+        description: "Collection deleted successfully",
+      });
+
+      // Remove collection from selected collections
+      if (selectedCollections.includes(id)) {
+        onCollectionsChange(selectedCollections.filter(collId => collId !== id));
+      }
+      
+      // Remove collection from list
+      setCollections(collections.filter(c => c.id !== id));
+    } catch (err: any) {
+      console.error('Error deleting collection:', err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to delete collection",
         variant: "destructive",
       });
     } finally {
@@ -196,6 +303,20 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
     setEditingCollection(null);
   };
 
+  if (!hasPermission) {
+    return (
+      <div className="p-6 bg-muted/50 rounded-lg text-center">
+        <h3 className="text-lg font-medium mb-2">Access Restricted</h3>
+        <p className="text-muted-foreground mb-4">
+          You need administrator permissions to manage product collections.
+        </p>
+        <Button variant="default" onClick={checkPermissions}>
+          Check Permissions Again
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -206,7 +327,7 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
             size="sm" 
             onClick={fetchCollections}
           >
-            <RefreshCw className="h-4 w-4 mr-1" /> Refresh
+            <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} /> Refresh
           </Button>
           <Button 
             size="sm" 
@@ -353,13 +474,23 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
                     <Badge variant={selectedCollections.includes(collection.id) ? "default" : "outline"}>
                       {selectedCollections.includes(collection.id) ? "Selected" : "Click to select"}
                     </Badge>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => startEditing(collection)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => startEditing(collection)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="text-destructive hover:text-destructive/90"
+                        onClick={() => deleteCollection(collection.id)}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </CardFooter>
                 </>
               )}
