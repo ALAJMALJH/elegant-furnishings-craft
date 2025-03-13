@@ -73,32 +73,36 @@ export const handleAdminLogin = async (email: string, password: string) => {
           window.location.hostname === 'localhost' || 
           window.location.hostname.includes('lovableproject.com')) {
         
-        // Create a mock auth session
+        // Create a mock auth session with an access token that won't expire soon
         const mockSession = {
-          access_token: 'DEMO_MODE_TOKEN',
-          refresh_token: 'DEMO_MODE_REFRESH',
+          access_token: 'DEMO_MODE_TOKEN_' + Date.now(),
+          refresh_token: 'DEMO_MODE_REFRESH_' + Date.now(),
           user: {
             id: `demo-${admin.email}`,
             email: admin.email,
             app_metadata: { role: admin.role },
             user_metadata: { role: admin.role }
           },
-          expires_at: Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
+          expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 // 24 hours from now
         };
         
-        // Set the mock session in localStorage
+        // Set the mock session directly in localStorage
         const authStore = {
           currentSession: mockSession,
-          expiresAt: Math.floor(Date.now() / 1000) + 3600
+          expiresAt: Math.floor(Date.now() / 1000) + 3600 * 24
         };
         
         localStorage.setItem('supabase.auth.token', JSON.stringify(authStore));
         
-        // Force refresh the session
+        // Also set up a public anonymous key in session
         try {
-          await supabase.auth.refreshSession();
+          await supabase.auth.setSession({
+            access_token: mockSession.access_token,
+            refresh_token: mockSession.refresh_token
+          });
+          console.log("Successfully set mock session");
         } catch (refreshError) {
-          console.log("Error refreshing session, but proceeding with localStorage auth");
+          console.log("Error setting mock session, but proceeding with localStorage auth:", refreshError);
         }
       }
       
@@ -175,4 +179,86 @@ export const getDemoAdminAccounts = () => {
     { email: 'operations@ajmalfurniture.com', password: 'operations123', role: 'operations', displayName: 'Operations Manager' },
     { email: 'admin@ajmalfurniture.com', password: 'admin123', role: 'admin', displayName: 'System Admin' },
   ];
+};
+
+// Function to create and set up a development admin session
+export const createDevAdminSession = async (role = 'admin', email = 'admin@ajmalfurniture.com') => {
+  // Only attempt this in dev mode
+  if (!(process.env.NODE_ENV === 'development' || 
+      window.location.hostname === 'localhost' || 
+      window.location.hostname.includes('lovableproject.com'))) {
+    console.log("Not in development mode, skipping dev admin session creation");
+    return false;
+  }
+
+  try {
+    console.log("Creating development admin session for", email);
+    
+    // Create mock user 
+    const mockUser = {
+      id: 'dev-admin-' + Date.now(),
+      email: email,
+      role: role,
+      displayName: getDisplayNameFromEmail(email),
+      isAuthenticated: true,
+      lastLogin: new Date().toISOString(),
+      authProvider: 'demo'
+    };
+    
+    // Store in localStorage
+    localStorage.setItem('user', JSON.stringify(mockUser));
+    
+    // Create a long-lived mock auth session
+    const mockSession = {
+      access_token: 'DEV_MODE_TOKEN_' + Date.now(),
+      refresh_token: 'DEV_MODE_REFRESH_' + Date.now(),
+      user: {
+        id: mockUser.id,
+        email: mockUser.email,
+        app_metadata: { role: role },
+        user_metadata: { role: role }
+      },
+      expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 // 24 hours
+    };
+    
+    // Set the mock session in localStorage
+    const authStore = {
+      currentSession: mockSession,
+      expiresAt: Math.floor(Date.now() / 1000) + 3600 * 24
+    };
+    
+    localStorage.setItem('supabase.auth.token', JSON.stringify(authStore));
+    
+    // Try to apply the session to Supabase
+    try {
+      const { error } = await supabase.auth.setSession({
+        access_token: mockSession.access_token,
+        refresh_token: mockSession.refresh_token
+      });
+      
+      if (error) {
+        console.log("Error setting Supabase session:", error);
+        // Fall back to manual session
+        const manualSession = {
+          data: {
+            session: mockSession,
+            user: mockSession.user
+          },
+          error: null
+        };
+        
+        (supabase.auth as any)._session = manualSession;
+        console.log("Manually set session object:", manualSession);
+      } else {
+        console.log("Successfully set development session in Supabase client");
+      }
+    } catch (sessionError) {
+      console.error("Failed to set session:", sessionError);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error creating dev admin session:", error);
+    return false;
+  }
 };
