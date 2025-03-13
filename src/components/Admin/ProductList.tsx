@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -48,9 +47,10 @@ interface Product {
 interface ProductListProps {
   onEdit: (product: Product) => void;
   refreshProducts: () => void;
+  realtimeStatus?: string;
 }
 
-const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts }) => {
+const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, realtimeStatus }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
