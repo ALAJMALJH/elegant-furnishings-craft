@@ -17,15 +17,15 @@ const CartPage: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>Your Cart</CardTitle>
-          <CardDescription>Shopping cart functionality is temporarily unavailable</CardDescription>
+          <CardDescription>Our products are currently unavailable</CardDescription>
         </CardHeader>
         <CardContent className="text-center py-8">
           <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
           <p className="text-muted-foreground mb-4">
-            Our shopping cart functionality is currently unavailable as we're upgrading our systems.
+            We are currently updating our product catalog and shopping functionality.
           </p>
           <p className="text-muted-foreground mb-6">
-            Please contact us directly to place an order or inquire about our products.
+            All products are temporarily unavailable. Please contact us directly for any inquiries.
           </p>
           <Link to="/contact">
             <Button>Contact Us</Button>

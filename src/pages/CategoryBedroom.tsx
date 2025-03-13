@@ -101,7 +101,7 @@ const CategoryBedroom = () => {
       categorySlug="bedroom"
       hero={{
         title: "Bedroom Furniture",
-        subtitle: "Create a peaceful retreat with our elegant bedroom collection",
+        subtitle: "Products currently unavailable - Please check back later",
         image: "https://images.unsplash.com/photo-1616593969747-4797dc75033e"
       }}
       subcategories={bedroomSubcategories}
