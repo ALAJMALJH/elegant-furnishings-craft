@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -53,6 +54,8 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts }) =>
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>("initializing");
+  const [retryCount, setRetryCount] = useState(0);
 
   const fetchProducts = async () => {
     try {
@@ -124,44 +127,106 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts }) =>
     initializeAuth();
   }, []);
 
-  // Set up real-time subscriptions
-  useRealtimeSubscription(
-    [{ table: 'products', event: '*' }],
-    {
-      products: (payload) => {
-        const { eventType, new: newProduct, old: oldProduct } = payload;
+  // Enhanced real-time subscriptions with retry logic
+  useEffect(() => {
+    let realtimeChannel: any = null;
+    let retryTimeout: NodeJS.Timeout | null = null;
+
+    const setupRealtime = async () => {
+      try {
+        setSubscriptionStatus("connecting");
         
-        if (eventType === 'INSERT') {
-          setProducts(prev => [newProduct, ...prev]);
-          toast({
-            title: 'New product added',
-            description: `${newProduct.name} has been added to the catalog.`,
+        // Make sure we're authenticated first
+        await ensureAuthForProducts();
+        
+        // Set up realtime subscription with proper error handling
+        realtimeChannel = supabase.channel('product-changes')
+          .on('postgres_changes', 
+            { 
+              event: '*', 
+              schema: 'public', 
+              table: 'products' 
+            }, 
+            (payload) => {
+              console.log('Product change received:', payload);
+              
+              const { eventType, new: newProduct, old: oldProduct } = payload;
+              
+              if (eventType === 'INSERT') {
+                setProducts(prev => [newProduct as Product, ...prev]);
+                toast({
+                  title: 'New product added',
+                  description: `${(newProduct as Product).name} has been added to the catalog.`,
+                });
+              } 
+              else if (eventType === 'UPDATE') {
+                setProducts(prev => 
+                  prev.map(product => 
+                    product.id === (newProduct as Product).id ? (newProduct as Product) : product
+                  )
+                );
+                toast({
+                  title: 'Product updated',
+                  description: `${(newProduct as Product).name} has been updated.`,
+                });
+              }
+              else if (eventType === 'DELETE') {
+                setProducts(prev => 
+                  prev.filter(product => product.id !== (oldProduct as Product).id)
+                );
+                toast({
+                  title: 'Product deleted',
+                  description: `A product has been removed from the catalog.`,
+                });
+              }
+            }
+          )
+          .subscribe((status: string) => {
+            console.log(`Realtime subscription status: ${status}`);
+            setSubscriptionStatus(status);
+            if (status === 'SUBSCRIBED') {
+              console.log('Successfully subscribed to real-time updates for products');
+              setRetryCount(0); // Reset retry count on successful subscription
+            } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+              console.error(`Failed to subscribe to real-time updates: ${status}`);
+              
+              // Implement exponential backoff for retries
+              if (retryCount < 5) {
+                const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
+                console.log(`Retrying in ${delay}ms (attempt ${retryCount + 1})`);
+                
+                if (retryTimeout) {
+                  clearTimeout(retryTimeout);
+                }
+                
+                retryTimeout = setTimeout(() => {
+                  setRetryCount(prev => prev + 1);
+                  if (realtimeChannel) {
+                    supabase.removeChannel(realtimeChannel);
+                  }
+                  setupRealtime();
+                }, delay);
+              }
+            }
           });
-        } 
-        else if (eventType === 'UPDATE') {
-          setProducts(prev => 
-            prev.map(product => 
-              product.id === newProduct.id ? newProduct : product
-            )
-          );
-          toast({
-            title: 'Product updated',
-            description: `${newProduct.name} has been updated.`,
-          });
-        }
-        else if (eventType === 'DELETE') {
-          setProducts(prev => 
-            prev.filter(product => product.id !== oldProduct.id)
-          );
-          toast({
-            title: 'Product deleted',
-            description: `${oldProduct.name} has been removed from the catalog.`,
-          });
-        }
+      } catch (error) {
+        console.error('Error setting up realtime subscription:', error);
+        setSubscriptionStatus("error");
       }
-    },
-    false // Don't show duplicate toasts since we're handling them manually above
-  );
+    };
+
+    setupRealtime();
+
+    // Clean up function
+    return () => {
+      if (realtimeChannel) {
+        supabase.removeChannel(realtimeChannel);
+      }
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+    };
+  }, [retryCount]);
 
   const handleDeleteProduct = async (id: string, name: string) => {
     if (window.confirm(`Are you sure you want to delete ${name}?`)) {
@@ -230,6 +295,24 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts }) =>
             <RefreshCcw className="h-4 w-4 mr-1" />
             Refresh Session
           </Button>
+        </div>
+      )}
+      
+      {subscriptionStatus === "CLOSED" && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md p-4 mb-4">
+          <div className="flex items-center">
+            <AlertTriangle className="h-5 w-5 mr-2 text-yellow-500" />
+            <span>Real-time updates are currently disconnected. Products may not update automatically.</span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setRetryCount(prev => prev + 1)}
+              className="ml-2"
+            >
+              <RefreshCcw className="h-4 w-4 mr-1" />
+              Reconnect
+            </Button>
+          </div>
         </div>
       )}
       

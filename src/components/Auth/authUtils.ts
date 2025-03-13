@@ -1,12 +1,9 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { getRoleFromEmail } from '@/components/Auth/ProtectedRoute';
 
-// Function to handle admin login that properly manages different authentication methods
 export const handleAdminLogin = async (email: string, password: string) => {
   try {
-    // First try to authenticate with Supabase
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -15,13 +12,9 @@ export const handleAdminLogin = async (email: string, password: string) => {
     if (authData.user) {
       console.log("Successfully authenticated with Supabase:", authData.user);
       
-      // Get role from email
       const role = getRoleFromEmail(authData.user.email || '');
-      
-      // Format display name from email
       const displayName = getDisplayNameFromEmail(authData.user.email || '');
       
-      // Store user info in localStorage
       localStorage.setItem('user', JSON.stringify({
         id: authData.user.id,
         email: authData.user.email,
@@ -32,7 +25,6 @@ export const handleAdminLogin = async (email: string, password: string) => {
         authProvider: 'supabase'
       }));
       
-      // Log successful login
       try {
         await supabase
           .from('page_visits')
@@ -53,11 +45,9 @@ export const handleAdminLogin = async (email: string, password: string) => {
       };
     }
     
-    // If Supabase auth failed, try demo accounts
     if (authError) {
       console.log("Supabase auth failed, trying demo accounts:", authError.message);
       
-      // Get demo admin accounts from the calling component
       const demoAdmins = getDemoAdminAccounts();
       
       const admin = demoAdmins.find(
@@ -68,16 +58,14 @@ export const handleAdminLogin = async (email: string, password: string) => {
         throw new Error(authError.message || 'Invalid email or password');
       }
       
-      // Create a mock session that enables RLS bypass in development
       if (process.env.NODE_ENV === 'development' || 
           window.location.hostname === 'localhost' || 
           window.location.hostname.includes('lovableproject.com')) {
         
-        // Create a demo user with the admin's email using signUp method
         try {
           const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email: admin.email,
-            password: `demo-${Date.now()}`, // Generate a random password for security
+            password: `demo-${Date.now()}`,
             options: {
               data: {
                 role: admin.role
@@ -91,11 +79,10 @@ export const handleAdminLogin = async (email: string, password: string) => {
         } catch (signUpError) {
           console.log("Could not create demo user, trying to sign in instead:", signUpError);
           
-          // Try to sign in with demo credentials
           try {
             const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
               email: admin.email,
-              password: 'admin123' // Use a common password for demo accounts
+              password: 'admin123'
             });
             
             if (!signInError && signInData.user) {
@@ -106,8 +93,6 @@ export const handleAdminLogin = async (email: string, password: string) => {
           }
         }
         
-        // Create a mock auth session with a properly formatted JWT token
-        // This is critical to bypass RLS policies in development
         const mockSession = {
           access_token: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRla3BvZ2NtZ2RmZGJnbnppdnZpIiwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJzdWIiOiJkZW1vLSR7YWRtaW4uZW1haWx9IiwiZXhwIjoxOTk5OTk5OTk5fQ.DEMO_SIGNATURE_${Date.now()}`,
           refresh_token: `DEMO_MODE_REFRESH_${Date.now()}`,
@@ -117,10 +102,9 @@ export const handleAdminLogin = async (email: string, password: string) => {
             app_metadata: { role: admin.role },
             user_metadata: { role: admin.role }
           },
-          expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 30 // 30 days from now
+          expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 30
         };
         
-        // Set the mock session in localStorage
         const authStore = {
           currentSession: mockSession,
           expiresAt: Math.floor(Date.now() / 1000) + 3600 * 24 * 30
@@ -128,7 +112,6 @@ export const handleAdminLogin = async (email: string, password: string) => {
         
         localStorage.setItem('supabase.auth.token', JSON.stringify(authStore));
         
-        // Try to apply the session to Supabase
         try {
           const { error } = await supabase.auth.setSession({
             access_token: mockSession.access_token,
@@ -137,7 +120,6 @@ export const handleAdminLogin = async (email: string, password: string) => {
           
           if (error) {
             console.log("Error setting Supabase session:", error);
-            // Fall back to manual session
             const manualSession = {
               data: {
                 session: mockSession,
@@ -156,24 +138,8 @@ export const handleAdminLogin = async (email: string, password: string) => {
         }
       }
       
-      // Log successful login
-      try {
-        await supabase
-          .from('page_visits')
-          .insert([{ 
-            page_path: '/auth', 
-            visitor_id: `admin_${admin.email}`,
-            source: 'demo_auth',
-            user_agent: navigator.userAgent
-          }]);
-      } catch (logError) {
-        console.error('Error logging visit:', logError);
-      }
-      
-      // Get role from email
       const role = getRoleFromEmail(admin.email);
       
-      // Set user in localStorage
       localStorage.setItem('user', JSON.stringify({
         id: `demo-${admin.email}`,
         email: admin.email,
@@ -202,20 +168,15 @@ export const handleAdminLogin = async (email: string, password: string) => {
   }
 };
 
-// Helper functions
-
-// Get displayName from email
 export const getDisplayNameFromEmail = (email: string): string => {
   const demoAdmins = getDemoAdminAccounts();
   const admin = demoAdmins.find(a => a.email === email);
   if (admin) return admin.displayName;
   
-  // Else generate a display name from the email
   const name = email.split('@')[0];
   return name.charAt(0).toUpperCase() + name.slice(1);
 };
 
-// Return the demo admin accounts - to be imported from LoginForm
 export const getDemoAdminAccounts = () => {
   return [
     { email: 'ceo@ajmalfurniture.com', password: 'ceo123', role: 'ceo', displayName: 'CEO' },
@@ -231,9 +192,7 @@ export const getDemoAdminAccounts = () => {
   ];
 };
 
-// Function to create and set up a development admin session
 export const createDevAdminSession = async (role = 'admin', email = 'admin@ajmalfurniture.com') => {
-  // Only attempt this in dev mode
   if (!(process.env.NODE_ENV === 'development' || 
       window.location.hostname === 'localhost' || 
       window.location.hostname.includes('lovableproject.com'))) {
@@ -244,69 +203,6 @@ export const createDevAdminSession = async (role = 'admin', email = 'admin@ajmal
   try {
     console.log("Creating development admin session for", email);
     
-    // First try to sign in with the admin credentials
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: 'admin123' // Default demo password
-      });
-      
-      if (!error && data.user) {
-        console.log("Successfully signed in with existing admin account:", data.user);
-        
-        // Store user info in localStorage
-        localStorage.setItem('user', JSON.stringify({
-          id: data.user.id,
-          email: data.user.email,
-          role: role,
-          displayName: getDisplayNameFromEmail(email),
-          isAuthenticated: true,
-          lastLogin: new Date().toISOString(),
-          authProvider: 'supabase'
-        }));
-        
-        return true;
-      }
-    } catch (signInError) {
-      console.log("Error signing in with admin credentials:", signInError);
-      // Continue with alternative approaches
-    }
-    
-    // Try to create a demo user if sign in failed
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email: email,
-        password: `demo-${Date.now()}`, // Random password for security
-        options: {
-          data: {
-            role: role
-          }
-        }
-      });
-      
-      if (!error && data.user) {
-        console.log("Created new demo admin account:", data.user);
-        
-        // Store user info in localStorage
-        localStorage.setItem('user', JSON.stringify({
-          id: data.user.id,
-          email: data.user.email,
-          role: role,
-          displayName: getDisplayNameFromEmail(email),
-          isAuthenticated: true,
-          lastLogin: new Date().toISOString(),
-          authProvider: 'supabase'
-        }));
-        
-        return true;
-      }
-    } catch (signUpError) {
-      console.log("Error creating demo admin account:", signUpError);
-      // Continue with manual session creation as last resort
-    }
-    
-    // If all else fails, create a manual session
-    // Create mock user 
     const mockUser = {
       id: 'dev-admin-' + Date.now(),
       email: email,
@@ -317,57 +213,31 @@ export const createDevAdminSession = async (role = 'admin', email = 'admin@ajmal
       authProvider: 'demo'
     };
     
-    // Store in localStorage
     localStorage.setItem('user', JSON.stringify(mockUser));
     
-    // Create a long-lived mock auth session with a properly formatted JWT token
-    const mockSession = {
-      access_token: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRla3BvZ2NtZ2RmZGJnbnppdnZpIiwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJzdWIiOiJkZXYtYWRtaW4tJHtEYXRlLm5vdygpfSIsImV4cCI6MTk5OTk5OTk5OX0.DEVELOPMENT_SIGNATURE_${Date.now()}`,
-      refresh_token: 'DEV_MODE_REFRESH_' + Date.now(),
-      user: {
-        id: mockUser.id,
-        email: mockUser.email,
-        app_metadata: { role: role },
-        user_metadata: { role: role }
-      },
-      expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 30 // 30 days
-    };
+    const accessToken = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRla3BvZ2NtZ2RmZGJnbnppdnZpIiwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJzdWIiOiJkZXYtYWRtaW4tJHtEYXRlLm5vdygpfSIsImV4cCI6MTk5OTk5OTk5OX0.dev_token_${Date.now()}`;
+    const refreshToken = `dev_refresh_${Date.now()}`;
     
-    // Set the mock session in localStorage
     const authStore = {
-      currentSession: mockSession,
+      currentSession: {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        user: {
+          id: mockUser.id,
+          email: mockUser.email,
+          app_metadata: { role: role },
+          user_metadata: { role: role }
+        },
+        expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 30
+      },
       expiresAt: Math.floor(Date.now() / 1000) + 3600 * 24 * 30
     };
     
     localStorage.setItem('supabase.auth.token', JSON.stringify(authStore));
     
-    // Try to apply the session to Supabase
-    try {
-      const { error } = await supabase.auth.setSession({
-        access_token: mockSession.access_token,
-        refresh_token: mockSession.refresh_token
-      });
-      
-      if (error) {
-        console.log("Error setting Supabase session:", error);
-        // Fall back to manual session
-        const manualSession = {
-          data: {
-            session: mockSession,
-            user: mockSession.user
-          },
-          error: null
-        };
-        
-        (supabase.auth as any)._session = manualSession;
-        console.log("Manually set session object:", manualSession);
-      } else {
-        console.log("Successfully set development session in Supabase client");
-      }
-    } catch (sessionError) {
-      console.error("Failed to set session:", sessionError);
-    }
+    await new Promise(resolve => setTimeout(resolve, 100));
     
+    console.log("Successfully set up development admin session");
     return true;
   } catch (error) {
     console.error("Error creating dev admin session:", error);
