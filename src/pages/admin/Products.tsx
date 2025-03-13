@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { 
@@ -16,17 +17,28 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ProductList from '@/components/Admin/ProductList';
 import { useToast } from '@/components/ui/use-toast';
+import ProductFormDialog from '@/components/Admin/Products/ProductFormDialog';
 
 const ProductsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProducts, setSelectedProducts] = useState([]);
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
   const { toast } = useToast();
 
   const handleCreateProduct = () => {
-    toast({
-      title: "Create Product",
-      description: "Product creation functionality is coming soon",
-    });
+    setEditingProduct(null);
+    setShowProductForm(true);
+  };
+
+  const handleEditProduct = (product) => {
+    setEditingProduct(product);
+    setShowProductForm(true);
+  };
+
+  const handleProductSaved = () => {
+    // Product saved successfully
+    // ProductList will automatically update via real-time subscription
   };
 
   const handleImportProducts = () => {
@@ -123,7 +135,7 @@ const ProductsPage = () => {
               </CardHeader>
               <CardContent>
                 <ProductList 
-                  onEdit={(product) => toast({ title: "Edit Product", description: `Editing ${product.name}` })}
+                  onEdit={handleEditProduct}
                   refreshProducts={() => toast({ title: "Refreshing Products", description: "Products refreshed" })}
                 />
               </CardContent>
@@ -173,6 +185,14 @@ const ProductsPage = () => {
           </TabsContent>
         </Tabs>
       </div>
+      
+      {/* Product Form Dialog */}
+      <ProductFormDialog 
+        open={showProductForm}
+        onOpenChange={setShowProductForm}
+        editingProduct={editingProduct}
+        onProductSaved={handleProductSaved}
+      />
     </>
   );
 };
