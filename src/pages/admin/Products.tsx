@@ -222,27 +222,37 @@ const Products: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchProducts();
-    fetchWarehouses();
-    
-    const checkManagePermission = async () => {
-      await ensureAuthForProducts();
+    const initializeAdminSession = async () => {
+      const isAuth = await ensureAuthForProducts();
+      console.log("Authorization initialized:", isAuth);
       
-      const canManage = await canManageProducts();
-      setHasManagePermission(canManage);
-      
-      if (!canManage) {
+      if (isAuth) {
+        fetchProducts();
+        fetchWarehouses();
+        
+        const canManage = await canManageProducts();
+        setHasManagePermission(canManage);
+        
+        if (!canManage) {
+          toast({
+            title: "Permission Denied",
+            description: "You don't have permission to add or edit products. Contact an administrator for access.",
+            variant: "destructive",
+          });
+        } else {
+          console.log("User has permission to manage products");
+          await ensureAuthForCollections();
+        }
+      } else {
         toast({
-          title: "Permission Denied",
-          description: "You don't have permission to add or edit products. Contact an administrator for access.",
+          title: "Authentication Error",
+          description: "Failed to authenticate. Please log in again.",
           variant: "destructive",
         });
-      } else {
-        await ensureAuthForCollections();
       }
     };
     
-    checkManagePermission();
+    initializeAdminSession();
   }, []);
 
   useRealtimeSubscription(
