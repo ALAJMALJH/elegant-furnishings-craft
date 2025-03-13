@@ -226,6 +226,8 @@ const Products: React.FC = () => {
     fetchWarehouses();
     
     const checkManagePermission = async () => {
+      await ensureAuthForProducts();
+      
       const canManage = await canManageProducts();
       setHasManagePermission(canManage);
       
@@ -237,7 +239,6 @@ const Products: React.FC = () => {
         });
       } else {
         await ensureAuthForCollections();
-        await ensureAuthForProducts();
       }
     };
     
@@ -335,6 +336,13 @@ const Products: React.FC = () => {
       if (!isAuthenticated) {
         throw new Error('You must be authenticated to save products');
       }
+      
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        throw new Error('Failed to get session: ' + (sessionError?.message || 'Not authenticated'));
+      }
+      
+      console.log('Saving product with active session:', sessionData.session.user);
       
       const supabaseVariants = variants.length > 0 
         ? variants.map(v => ({

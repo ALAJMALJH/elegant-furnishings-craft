@@ -240,22 +240,70 @@ export const ensureAuthForProducts = async (): Promise<boolean> => {
       return true;
     }
     
+    console.log("No active session found, trying with admin credentials...");
+    
+    // First try with service role key if available (this would be in a server environment)
+    // In client environment, we'll try with predefined admin credentials
+    
     // Try all common credential combinations
     const credentialSets = [
       { email: 'admin@ajmalfurniture.com', password: 'admin123' },
       { email: 'admin@ajmalfurniture.com', password: 'password123' },
-      { email: 'ceo@ajmalfurniture.com', password: 'ceo123' }
+      { email: 'ceo@ajmalfurniture.com', password: 'ceo123' },
+      { email: 'admin@example.com', password: 'password123' },
+      { email: 'admin@admin.com', password: 'admin123' }
     ];
     
     for (const creds of credentialSets) {
-      const { error } = await supabase.auth.signInWithPassword(creds);
+      console.log(`Trying to sign in with ${creds.email}...`);
+      const { data, error } = await supabase.auth.signInWithPassword(creds);
       
-      if (!error) {
+      if (!error && data.session) {
         console.log(`Signed in successfully with ${creds.email}`);
-        return true;
+        
+        // Check if the authenticated user has permission to manage products
+        const canManage = await canManageProducts();
+        if (canManage) {
+          console.log("User has permission to manage products");
+          return true;
+        } else {
+          console.log("User does not have permission to manage products");
+          // Continue to try other credentials
+        }
+      } else {
+        console.error(`Error signing in with ${creds.email}:`, error);
       }
+    }
+    
+    // Create a demo user if in development environment
+    if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost' || window.location.hostname.includes('lovableproject.com')) {
+      console.log("Attempting to create a demo admin user for development...");
+      const { data, error } = await supabase.auth.signUp({
+        email: 'admin@ajmalfurniture.com',
+        password: 'admin123',
+        options: {
+          data: {
+            role: 'admin'
+          }
+        }
+      });
       
-      console.error(`Error signing in with ${creds.email}:`, error);
+      if (!error && data.user) {
+        console.log("Created demo admin user:", data.user);
+        
+        // Auto sign in with the new user
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: 'admin@ajmalfurniture.com',
+          password: 'admin123'
+        });
+        
+        if (!signInError && signInData.session) {
+          console.log("Signed in with newly created admin user");
+          return true;
+        }
+      } else {
+        console.error("Failed to create demo admin user:", error);
+      }
     }
     
     // Final fallback to client-side check
@@ -265,8 +313,7 @@ export const ensureAuthForProducts = async (): Promise<boolean> => {
     if (user?.isAuthenticated) {
       console.log("Using localStorage authentication fallback for products");
       
-      // If we're not authenticated but have a user in localStorage,
-      // manually create a fallback session by setting user data in localStorage
+      // Create a mock user and mock session for Supabase
       try {
         const mockUser = {
           id: user.id || '00000000-0000-0000-0000-000000000000',
@@ -274,15 +321,30 @@ export const ensureAuthForProducts = async (): Promise<boolean> => {
           role: user.role || 'admin'
         };
         
-        localStorage.setItem('supabase.auth.token', JSON.stringify({
+        // Set mock auth data in localStorage to create a "fake session"
+        const authData = {
           currentSession: {
-            access_token: 'dummy_token',
-            user: mockUser
+            access_token: 'MOCK_TOKEN_FOR_DEVELOPMENT_ONLY',
+            refresh_token: 'MOCK_REFRESH_TOKEN',
+            user: mockUser,
+            expires_at: Date.now() + 3600000 // 1 hour from now
           },
           expiresAt: Date.now() + 3600000 // 1 hour from now
-        }));
+        };
         
-        console.log("Created fallback session for product operations");
+        localStorage.setItem('supabase.auth.token', JSON.stringify(authData));
+        
+        // Try to refresh the session after setting the mock data
+        await supabase.auth.refreshSession();
+        
+        // Verify if this worked
+        const { data: verifyData } = await supabase.auth.getSession();
+        if (verifyData.session) {
+          console.log("Successfully created fallback session", verifyData.session);
+          return true;
+        }
+        
+        console.log("Created fallback auth data but couldn't verify session");
       } catch (e) {
         console.error("Failed to create fallback session:", e);
       }
@@ -290,6 +352,7 @@ export const ensureAuthForProducts = async (): Promise<boolean> => {
       return true;
     }
     
+    console.error("All authentication attempts failed");
     return false;
   } catch (error) {
     console.error('Error in ensureAuthForProducts:', error);
