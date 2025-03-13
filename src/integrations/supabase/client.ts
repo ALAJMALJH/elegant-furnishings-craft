@@ -233,18 +233,22 @@ export const ensureAuthForProducts = async (): Promise<boolean> => {
     if (isDevelopment) {
       console.log("Development environment detected, creating admin session");
       
-      // Create a specific admin session for product management
-      const sessionCreated = await createDevAdminSession('admin', 'admin@ajmalfurniture.com');
-      
-      // Wait a moment to ensure the session is properly set in localStorage
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Verify the session was actually created
-      const { data: { session: verificationSession } } = await supabase.auth.getSession();
-      
-      if (verificationSession) {
-        console.log("Successfully verified admin session was created:", verificationSession.user.id);
-        return true;
+      try {
+        // Create a specific admin session for product management
+        const sessionCreated = await createDevAdminSession('admin', 'admin@ajmalfurniture.com');
+        
+        // Wait a moment to ensure the session is properly set in localStorage
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Verify the session was actually created
+        const { data: { session: verificationSession } } = await supabase.auth.getSession();
+        
+        if (verificationSession) {
+          console.log("Successfully verified admin session was created:", verificationSession.user.id);
+          return true;
+        }
+      } catch (devSessionError) {
+        console.error("Error creating dev session:", devSessionError);
       }
       
       // If we couldn't create a proper session, store a user in localStorage
@@ -282,37 +286,59 @@ export const ensureAuthForProducts = async (): Promise<boolean> => {
   }
 };
 
-// Enable realtime subscriptions for relevant tables
+// Enable realtime subscriptions for relevant tables with better error handling
 const enableRealtimeForTables = async () => {
   try {
-    // Enable for products table
-    await supabase.channel('table-db-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'products'
-      }, (payload) => {
-        console.log('Product change received:', payload);
-        // Broadcast custom event for product changes
-        const event = new CustomEvent('product_updated', { detail: payload });
-        window.dispatchEvent(event);
-      })
-      .subscribe();
-      
-    // Enable for product_collections table
-    await supabase.channel('product-collections-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'product_collections'
-      }, (payload) => {
-        console.log('Product collection change received:', payload);
-        // Broadcast custom event for collection changes
-        const event = new CustomEvent('collection_updated', { detail: payload });
-        window.dispatchEvent(event);
-      })
-      .subscribe();
-      
+    console.log('Setting up realtime subscriptions for tables...');
+    
+    // Enable for products table with retry mechanism
+    const setupProductsChannel = () => {
+      return supabase.channel('table-db-changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'products'
+        }, (payload) => {
+          console.log('Product change received:', payload);
+          // Broadcast custom event for product changes
+          const event = new CustomEvent('product_updated', { detail: payload });
+          window.dispatchEvent(event);
+        })
+        .subscribe((status) => {
+          console.log('Products table realtime status:', status);
+          if (status === 'CHANNEL_ERROR') {
+            console.error('Error subscribing to products table changes, retrying in 3s...');
+            setTimeout(setupProductsChannel, 3000);
+          }
+        });
+    };
+    
+    // Enable for product_collections table with retry mechanism
+    const setupCollectionsChannel = () => {
+      return supabase.channel('product-collections-changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'product_collections'
+        }, (payload) => {
+          console.log('Product collection change received:', payload);
+          // Broadcast custom event for collection changes
+          const event = new CustomEvent('collection_updated', { detail: payload });
+          window.dispatchEvent(event);
+        })
+        .subscribe((status) => {
+          console.log('Collections table realtime status:', status);
+          if (status === 'CHANNEL_ERROR') {
+            console.error('Error subscribing to product_collections table changes, retrying in 3s...');
+            setTimeout(setupCollectionsChannel, 3000);
+          }
+        });
+    };
+    
+    // Set up channels with retry mechanism
+    setupProductsChannel();
+    setupCollectionsChannel();
+    
     // Enable for orders table
     await supabase.channel('orders-db-changes')
       .on('postgres_changes', {
@@ -352,11 +378,15 @@ const enableRealtimeForTables = async () => {
     console.log('Realtime subscriptions enabled for tables');
   } catch (error) {
     console.error('Error enabling realtime subscriptions:', error);
+    // Retry after 5 seconds on failure
+    setTimeout(enableRealtimeForTables, 5000);
   }
 };
 
 // Initialize realtime subscriptions
-enableRealtimeForTables();
+window.addEventListener('load', () => {
+  enableRealtimeForTables();
+});
 
 // Helper function to check if a user is authenticated in localStorage
 export const isAuthenticated = (): boolean => {
@@ -375,39 +405,20 @@ export const isAuthenticated = (): boolean => {
 // Helper to refresh admin session if needed
 export const refreshAdminSession = async (): Promise<boolean> => {
   try {
-    // Check Supabase auth session first
-    const { data: { session } } = await supabase.auth.getSession();
+    console.log('Attempting to refresh admin session...');
     
-    if (session) {
-      // We have a valid Supabase session, ensure localStorage is in sync
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        console.log("Refreshed admin session from Supabase auth");
-        
-        // Get role from email or use default
-        const email = user.email || '';
-        const username = email.split('@')[0].toLowerCase();
-        const role = ['ceo', 'cto', 'admin', 'manager', 'hr', 'marketing', 
-                      'finance', 'operations', 'sales', 'support'].includes(username) 
-                      ? username : 'support';
-        
-        // Update localStorage
-        localStorage.setItem('user', JSON.stringify({
-          id: user.id,
-          email: user.email,
-          role: role,
-          isAuthenticated: true,
-          lastLogin: new Date().toISOString(),
-        }));
-        
-        return true;
-      }
-    }
+    // First try to sign out to clear any stale session
+    await supabase.auth.signOut();
     
     // Try to automatically sign in (for development purposes only)
     try {
       // Only attempt this in dev mode
-      if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost' || window.location.hostname.includes('lovableproject.com')) {
+      if (process.env.NODE_ENV === 'development' || 
+          window.location.hostname === 'localhost' || 
+          window.location.hostname.includes('lovableproject.com')) {
+        
+        console.log('Development environment detected, attempting automatic sign in');
+        
         const { error } = await supabase.auth.signInWithPassword({
           email: 'admin@ajmalfurniture.com',
           password: 'admin123', // This should be replaced with a secure method in production
@@ -415,11 +426,41 @@ export const refreshAdminSession = async (): Promise<boolean> => {
         
         if (!error) {
           console.log("Successfully signed in with development credentials");
-          return true;
+          
+          // Get user from session
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (user) {
+            // Create a user entry in localStorage to ensure our client-side checks work too
+            localStorage.setItem('user', JSON.stringify({
+              id: user.id,
+              email: user.email,
+              role: 'admin',
+              isAuthenticated: true,
+              lastLogin: new Date().toISOString(),
+            }));
+            
+            // Wait a moment for session to be properly established
+            await new Promise(resolve => setTimeout(resolve, 300));
+            return true;
+          }
+        } else {
+          console.error('Error signing in with development credentials:', error);
         }
       }
     } catch (signInError) {
       console.log("Development sign-in attempt failed:", signInError);
+    }
+    
+    // Fall back to createDevAdminSession
+    try {
+      const sessionCreated = await createDevAdminSession('admin', 'admin@ajmalfurniture.com');
+      if (sessionCreated) {
+        console.log("Successfully created admin session via authUtils");
+        return true;
+      }
+    } catch (devSessionError) {
+      console.error('Error creating dev admin session:', devSessionError);
     }
     
     // If no Supabase session, check if we have localStorage user

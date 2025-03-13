@@ -7,9 +7,10 @@ import { useToast } from '@/components/ui/use-toast';
 
 interface ProductTabsProps {
   onEditProduct: (product: any) => void;
+  realtimeStatus?: string;
 }
 
-const ProductTabs: React.FC<ProductTabsProps> = ({ onEditProduct }) => {
+const ProductTabs: React.FC<ProductTabsProps> = ({ onEditProduct, realtimeStatus }) => {
   const { toast } = useToast();
 
   const refreshProducts = () => {
@@ -38,6 +39,7 @@ const ProductTabs: React.FC<ProductTabsProps> = ({ onEditProduct }) => {
             <ProductList 
               onEdit={onEditProduct}
               refreshProducts={refreshProducts}
+              realtimeStatus={realtimeStatus}
             />
           </CardContent>
         </Card>

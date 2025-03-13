@@ -9,6 +9,7 @@ import { toast } from '@/components/ui/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 const ProductsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -16,6 +17,7 @@ const ProductsPage = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [realtimeStatus, setRealtimeStatus] = useState<string>('initializing');
 
   // Initialize authentication on component mount
   useEffect(() => {
@@ -45,6 +47,58 @@ const ProductsPage = () => {
     
     initAuth();
   }, []);
+
+  // Check Supabase realtime connection status
+  useEffect(() => {
+    const checkRealtimeConnection = () => {
+      try {
+        // Set up a connectivity monitor for Supabase realtime
+        const channel = supabase.channel('system');
+        
+        channel.on('system', { event: 'reconnect' }, () => {
+          console.log('Realtime system reconnect event');
+          setRealtimeStatus('reconnecting');
+          toast({
+            title: 'Reconnecting',
+            description: 'Attempting to reestablish connection to real-time updates',
+          });
+        });
+        
+        channel.on('system', { event: 'disconnect' }, () => {
+          console.log('Realtime system disconnect event');
+          setRealtimeStatus('disconnected');
+          toast({
+            title: 'Disconnected',
+            description: 'Real-time connection lost',
+            variant: 'destructive',
+          });
+        });
+        
+        channel.subscribe((status) => {
+          console.log('System channel status:', status);
+          setRealtimeStatus(status);
+          
+          if (status === 'SUBSCRIBED') {
+            toast({
+              title: 'Connected',
+              description: 'Successfully connected to real-time updates',
+            });
+          }
+        });
+        
+        return () => {
+          supabase.removeChannel(channel);
+        };
+      } catch (error) {
+        console.error('Error setting up realtime status monitor:', error);
+        setRealtimeStatus('error');
+      }
+    };
+    
+    if (!isInitializing && !authError) {
+      checkRealtimeConnection();
+    }
+  }, [isInitializing, authError]);
 
   const handleCreateProduct = () => {
     setEditingProduct(null);
@@ -102,6 +156,11 @@ const ProductsPage = () => {
     );
   }
 
+  const showRealtimeError = realtimeStatus === 'disconnected' || 
+                            realtimeStatus === 'error' || 
+                            realtimeStatus === 'CHANNEL_ERROR' ||
+                            realtimeStatus === 'CLOSED';
+
   return (
     <>
       <Helmet>
@@ -128,13 +187,35 @@ const ProductsPage = () => {
           </Alert>
         )}
         
+        {showRealtimeError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Real-time Connection Error</AlertTitle>
+            <AlertDescription className="flex items-center justify-between">
+              <span>Could not establish a connection for real-time updates. Products may not update automatically.</span>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => window.location.reload()}
+                className="ml-4"
+              >
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                Refresh Page
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <ProductsToolbar 
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onCreateProduct={handleCreateProduct}
         />
         
-        <ProductTabs onEditProduct={handleEditProduct} />
+        <ProductTabs 
+          onEditProduct={handleEditProduct} 
+          realtimeStatus={realtimeStatus}
+        />
       </div>
       
       {/* Product Form Dialog */}
