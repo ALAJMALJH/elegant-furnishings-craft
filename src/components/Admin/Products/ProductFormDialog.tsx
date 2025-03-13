@@ -253,7 +253,6 @@ const ProductFormDialog: React.FC<ProductFormDialogProps> = ({
             description: values.description,
             price: values.price,
             discount_price: values.discount_price,
-            sku: values.sku,
             category: values.category,
             subcategory: values.subcategory,
             stock_quantity: values.stock_quantity,
@@ -285,7 +284,6 @@ const ProductFormDialog: React.FC<ProductFormDialogProps> = ({
             description: values.description,
             price: values.price,
             discount_price: values.discount_price,
-            sku: values.sku || `PROD-${Date.now()}`,
             category: values.category,
             subcategory: values.subcategory,
             stock_quantity: values.stock_quantity,
@@ -398,7 +396,7 @@ const ProductFormDialog: React.FC<ProductFormDialogProps> = ({
                           <Input {...field} placeholder="WOOD-BED-001" />
                         </FormControl>
                         <FormDescription>
-                          Unique product identifier (will be auto-generated if empty)
+                          Unique product identifier (for reference only)
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
