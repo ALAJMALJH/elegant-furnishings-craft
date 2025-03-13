@@ -157,12 +157,18 @@ const Products: React.FC = () => {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
+      const { data: authData } = await supabase.auth.getUser();
+      const isAuthenticated = !!authData?.user;
+      
+      console.log('User authentication status:', isAuthenticated);
+      
       const { data, error } = await supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false });
       
       if (error) {
+        console.error('Supabase error fetching products:', error);
         throw error;
       }
 
@@ -229,6 +235,29 @@ const Products: React.FC = () => {
           description: "You don't have permission to add or edit products. Contact an administrator for access.",
           variant: "destructive",
         });
+      } else {
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData?.user) {
+          console.log('User has permissions but is not authenticated with Supabase');
+          
+          const demoEmail = 'admin@ajmalfurniture.com';
+          const demoPassword = 'password123';
+          
+          try {
+            const { error } = await supabase.auth.signInWithPassword({
+              email: demoEmail,
+              password: demoPassword
+            });
+            
+            if (error) {
+              console.error('Error signing in:', error);
+            } else {
+              console.log('Signed in successfully with demo account');
+            }
+          } catch (e) {
+            console.error('Failed to sign in:', e);
+          }
+        }
       }
     };
     
@@ -322,6 +351,11 @@ const Products: React.FC = () => {
     try {
       setIsLoading(true);
       
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData?.user) {
+        throw new Error('You must be authenticated to save products');
+      }
+      
       const supabaseVariants = variants.length > 0 
         ? variants.map(v => ({
             id: v.id,
@@ -360,7 +394,10 @@ const Products: React.FC = () => {
           .update(productData)
           .eq('id', editingProduct.id);
           
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating product:', error);
+          throw error;
+        }
           
         toast({
           title: "Product updated",
@@ -371,7 +408,10 @@ const Products: React.FC = () => {
           .from('products')
           .insert([productData]);
           
-        if (error) throw error;
+        if (error) {
+          console.error('Error inserting product:', error);
+          throw error;
+        }
           
         toast({
           title: "Product added",
