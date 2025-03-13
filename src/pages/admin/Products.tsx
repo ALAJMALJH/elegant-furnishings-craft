@@ -14,7 +14,8 @@ import {
   Layers,
   BarChart3,
   Table2,
-  Warehouse
+  Warehouse,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -80,6 +81,7 @@ import { ProductVariantsForm } from '@/components/Admin/Products/ProductVariants
 import { ProductCollectionsManager } from '@/components/Admin/Products/ProductCollectionsManager';
 import { InventoryManager } from '@/components/Admin/Products/InventoryManager';
 import { ImageUploader } from '@/components/Admin/Products/ImageUploader';
+import AIProductGenerator from '@/components/Admin/Products/AIProductGenerator';
 
 interface Product {
   id: string;
@@ -131,6 +133,7 @@ const Products: React.FC = () => {
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   const [hasManagePermission, setHasManagePermission] = useState(false);
+  const [isAIGeneratorOpen, setIsAIGeneratorOpen] = useState(false);
 
   const form = useForm<ProductFormData>({
     defaultValues: {
@@ -476,6 +479,49 @@ const Products: React.FC = () => {
     );
   };
 
+  const handleAIGenerate = () => {
+    if (!hasManagePermission) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to add products. Contact an administrator for access.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsAIGeneratorOpen(true);
+  };
+
+  const handleProductGenerated = (productData: any) => {
+    setEditingProduct(null);
+    
+    form.reset({
+      name: productData.name,
+      description: productData.description,
+      price: productData.price,
+      discount_price: null,
+      category: productData.category,
+      subcategory: productData.subcategory || '',
+      image_url: productData.image_url,
+      stock_quantity: productData.stock_quantity || 20,
+      is_bestseller: productData.is_bestseller || false,
+      is_featured: productData.is_featured || false,
+      is_new_arrival: productData.is_new_arrival || true,
+      is_on_sale: false,
+      low_stock_threshold: 5,
+      warehouse_id: null,
+    });
+    
+    setIsAIGeneratorOpen(false);
+    setIsAddProductOpen(true);
+    setActiveTab('general');
+    
+    toast({
+      title: "AI Product Created",
+      description: "You can now review and save the AI-generated product.",
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -537,6 +583,9 @@ const Products: React.FC = () => {
         <div className="flex gap-2">
           <Button onClick={fetchProducts} variant="outline" size="icon" title="Refresh Products">
             <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button onClick={handleAIGenerate} variant="outline" disabled={!hasManagePermission} className="gap-1">
+            <Sparkles className="h-4 w-4" /> AI Generate
           </Button>
           <Button onClick={handleAddProduct} disabled={!hasManagePermission}>
             <Plus className="mr-2 h-4 w-4" /> Add Product
@@ -1073,9 +1122,27 @@ const Products: React.FC = () => {
           </Tabs>
         </DialogContent>
       </Dialog>
+      
+      <Dialog open={isAIGeneratorOpen} onOpenChange={setIsAIGeneratorOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>AI Product Generator</DialogTitle>
+            <DialogDescription>
+              Upload an image and set a price to generate product details with AI
+            </DialogDescription>
+          </DialogHeader>
+          
+          <AIProductGenerator onProductGenerated={handleProductGenerated} />
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAIGeneratorOpen(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
 export default Products;
-

@@ -1,4 +1,37 @@
 
 project_id = "tekpogcmgdfdbgnzivvi"
-[functions.chatbot]
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+
+[db]
+port = 54322
+
+[studio]
+port = 54323
+
+[inbucket]
+port = 54324
+
+[auth]
+enabled = true
+port = 9999
+
+[realtime]
+enabled = true
+
+[storage]
+enabled = true
+
+[edge_functions]
+enabled = true
+
+[[edge_functions.function]]
+name = "chatbot"
+verify_jwt = false
+
+[[edge_functions.function]]
+name = "ai-product-generator"
 verify_jwt = false
