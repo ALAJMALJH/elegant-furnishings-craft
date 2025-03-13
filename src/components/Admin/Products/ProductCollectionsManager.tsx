@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
-import { supabase, refreshAdminSession } from '@/integrations/supabase/client';
+import { supabase, refreshAdminSession, ensureAuthForCollections } from '@/integrations/supabase/client';
 import { ImageUploader } from './ImageUploader';
 
 interface ProductCollection {
@@ -101,8 +101,8 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
       setIsLoading(true);
       
       // Ensure user is authenticated
-      const isLoggedIn = await refreshAdminSession();
-      if (!isLoggedIn) {
+      const isAuthenticated = await ensureAuthForCollections();
+      if (!isAuthenticated) {
         throw new Error('Authentication required to create collections. Please log in again.');
       }
       
@@ -151,8 +151,8 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
       setIsLoading(true);
       
       // Ensure user is authenticated
-      const isLoggedIn = await refreshAdminSession();
-      if (!isLoggedIn) {
+      const isAuthenticated = await ensureAuthForCollections();
+      if (!isAuthenticated) {
         throw new Error('Authentication required to update collections. Please log in again.');
       }
       
@@ -202,8 +202,8 @@ export const ProductCollectionsManager: React.FC<ProductCollectionsManagerProps>
       setIsLoading(true);
       
       // Ensure user is authenticated
-      const isLoggedIn = await refreshAdminSession();
-      if (!isLoggedIn) {
+      const isAuthenticated = await ensureAuthForCollections();
+      if (!isAuthenticated) {
         throw new Error('Authentication required to delete collections. Please log in again.');
       }
       
