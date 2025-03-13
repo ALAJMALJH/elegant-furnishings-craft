@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -127,7 +128,7 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
     initializeAuth();
   }, []);
 
-  // Enhanced real-time subscriptions with retry logic
+  // Enhanced real-time subscriptions with error handling
   useEffect(() => {
     let realtimeChannel: any = null;
     let retryTimeout: NodeJS.Timeout | null = null;
@@ -202,7 +203,11 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
                 retryTimeout = setTimeout(() => {
                   setRetryCount(prev => prev + 1);
                   if (realtimeChannel) {
-                    supabase.removeChannel(realtimeChannel);
+                    try {
+                      supabase.removeChannel(realtimeChannel);
+                    } catch (e) {
+                      console.error('Error removing channel:', e);
+                    }
                   }
                   setupRealtime();
                 }, delay);
@@ -212,15 +217,27 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
       } catch (error) {
         console.error('Error setting up realtime subscription:', error);
         setSubscriptionStatus("error");
+        // Fallback to load products directly
+        fetchProducts();
       }
     };
 
-    setupRealtime();
+    try {
+      setupRealtime();
+    } catch (err) {
+      console.error('Fatal error in realtime setup:', err);
+      // Ensure products are still loaded even if realtime fails
+      fetchProducts();
+    }
 
     // Clean up function
     return () => {
       if (realtimeChannel) {
-        supabase.removeChannel(realtimeChannel);
+        try {
+          supabase.removeChannel(realtimeChannel);
+        } catch (e) {
+          console.error('Error removing channel during cleanup:', e);
+        }
       }
       if (retryTimeout) {
         clearTimeout(retryTimeout);
@@ -249,7 +266,11 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
         
         if (error) throw error;
         
-        // Real-time will handle the UI update
+        // If realtime is not working, update locally
+        if (subscriptionStatus !== 'SUBSCRIBED') {
+          setProducts(prev => prev.filter(product => product.id !== id));
+        }
+        
         toast({
           title: 'Product deleted',
           description: `${name} has been successfully deleted.`,
@@ -275,6 +296,15 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
     }
   };
 
+  // Add a manual refresh function that users can trigger if realtime fails
+  const handleManualRefresh = () => {
+    fetchProducts();
+    toast({
+      title: 'Refreshing products',
+      description: 'Manually refreshing product list',
+    });
+  };
+
   return (
     <div>
       {authError && (
@@ -298,7 +328,7 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
         </div>
       )}
       
-      {subscriptionStatus === "CLOSED" && (
+      {(subscriptionStatus === "CLOSED" || subscriptionStatus === "CHANNEL_ERROR" || subscriptionStatus === "error") && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md p-4 mb-4">
           <div className="flex items-center">
             <AlertTriangle className="h-5 w-5 mr-2 text-yellow-500" />
@@ -306,11 +336,11 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => setRetryCount(prev => prev + 1)}
+              onClick={handleManualRefresh}
               className="ml-2"
             >
               <RefreshCcw className="h-4 w-4 mr-1" />
-              Reconnect
+              Refresh Products
             </Button>
           </div>
         </div>
