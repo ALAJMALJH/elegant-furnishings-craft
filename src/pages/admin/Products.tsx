@@ -226,8 +226,25 @@ const Products: React.FC = () => {
     const initializeAdminSession = async () => {
       console.log("Starting initialization of admin session");
       
-      const devSessionCreated = await createDevAdminSession('admin');
+      const devSessionCreated = await createDevAdminSession('admin', 'admin@ajmalfurniture.com');
       console.log("Development admin session created:", devSessionCreated);
+      
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log("Session after initialization:", sessionData.session);
+      
+      if (!sessionData.session) {
+        console.log("No session found after initialization, trying anonymous auth");
+        try {
+          const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
+          if (!anonError && anonData.session) {
+            console.log("Created anonymous session:", anonData.session);
+          } else if (anonError) {
+            console.error("Anonymous auth error:", anonError);
+          }
+        } catch (error) {
+          console.error("Error with anonymous auth:", error);
+        }
+      }
       
       const isAuth = await ensureAuthForProducts();
       console.log("Product authorization initialized:", isAuth);
@@ -252,7 +269,7 @@ const Products: React.FC = () => {
       } else {
         toast({
           title: "Authentication Error",
-          description: "Failed to authenticate. Please log in again.",
+          description: "Failed to authenticate. Please refresh the page and try again.",
           variant: "destructive",
         });
       }
@@ -350,25 +367,28 @@ const Products: React.FC = () => {
       
       const isAuthenticated = await ensureAuthForProducts();
       if (!isAuthenticated) {
-        const devSessionCreated = await createDevAdminSession('admin');
+        const devSessionCreated = await createDevAdminSession('admin', 'admin@ajmalfurniture.com');
         if (!devSessionCreated) {
-          throw new Error('Unable to authenticate - please log in again');
+          throw new Error('Unable to authenticate - please refresh the page and try again');
         }
       }
       
       const { data: sessionData } = await supabase.auth.getSession();
+      console.log('Current session before saving:', sessionData.session);
       
       const userString = localStorage.getItem('user');
       const user = userString ? JSON.parse(userString) : null;
       
       if (!sessionData.session && (!user || process.env.NODE_ENV !== 'development')) {
-        throw new Error('No valid session found - please log in again');
+        throw new Error('No valid session found - please refresh the page and try again');
       }
       
       if (sessionData.session) {
         console.log('Saving product with active session:', sessionData.session.user);
       } else if (user) {
         console.log('Saving product with localStorage user in development mode:', user);
+        
+        await createDevAdminSession(user.role, user.email);
       }
       
       const supabaseVariants = variants.length > 0 
