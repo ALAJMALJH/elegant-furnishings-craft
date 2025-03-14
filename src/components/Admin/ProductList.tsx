@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Table, 
@@ -49,18 +48,23 @@ interface ProductListProps {
   onEdit: (product: Product) => void;
   refreshProducts: () => void;
   realtimeStatus?: string;
+  lastRefreshed?: Date;
 }
 
-const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, realtimeStatus }) => {
+const ProductList: React.FC<ProductListProps> = ({ 
+  onEdit, 
+  refreshProducts, 
+  realtimeStatus,
+  lastRefreshed
+}) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   
-  // Simplified subscribed state - now directly derived from props instead of maintaining separate state
+  // Simplified subscribed state - directly derived from props
   const isSubscribed = realtimeStatus === 'SUBSCRIBED';
 
-  // Enhanced fetchProducts function with better error handling
+  // Enhanced fetchProducts function
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
@@ -74,7 +78,7 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
         return;
       }
       
-      console.log("Fetching products directly...");
+      console.log("Fetching products...");
       const { data, error } = await supabase
         .from('products')
         .select('*')
@@ -101,7 +105,6 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
             
             setProducts(retryData || []);
             setAuthError(null);
-            setLastRefreshed(new Date());
             return;
           } else {
             setAuthError('Authentication failed. Please refresh the page or log in again.');
@@ -111,7 +114,6 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
       }
       
       setProducts(data || []);
-      setLastRefreshed(new Date());
     } catch (error) {
       console.error('Error fetching products:', error);
       toast({
@@ -124,120 +126,66 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
     }
   }, []);
 
-  // Initialize auth and fetch on mount
+  // Fetch on mount and when lastRefreshed changes
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        await ensureAuthForProducts();
-        fetchProducts();
-      } catch (error) {
-        console.error("Error initializing auth:", error);
-        setAuthError("Failed to initialize authentication");
-      }
-    };
-    
-    initializeAuth();
-  }, [fetchProducts]);
+    fetchProducts();
+  }, [fetchProducts, lastRefreshed]);
 
-  // Set up realtime subscription with improved error handling
+  // Set up realtime subscription with improved reliability
   useEffect(() => {
-    // Only set up realtime if we're subscribed according to parent component
+    // Only set up realtime if we're subscribed according to parent
     if (!isSubscribed) {
-      console.log("Skipping realtime setup as parent indicates we're not subscribed");
       return;
     }
     
-    let realtimeChannel: any = null;
-    let refreshInterval: NodeJS.Timeout | null = null;
-
-    const setupRealtimeSubscription = async () => {
-      try {
-        console.log("Setting up realtime subscription for products...");
-        const channel = supabase.channel('product-changes-' + new Date().getTime())
-          .on('postgres_changes', 
-            { 
-              event: '*', 
-              schema: 'public', 
-              table: 'products' 
-            }, 
-            (payload) => {
-              console.log('Product change received:', payload);
-              
-              const { eventType, new: newProduct, old: oldProduct } = payload;
-              
-              if (eventType === 'INSERT') {
-                setProducts(prev => [newProduct as Product, ...prev]);
-                toast({
-                  title: 'New product added',
-                  description: `${(newProduct as Product).name} has been added to the catalog.`,
-                });
-              } 
-              else if (eventType === 'UPDATE') {
-                setProducts(prev => 
-                  prev.map(product => 
-                    product.id === (newProduct as Product).id ? (newProduct as Product) : product
-                  )
-                );
-                toast({
-                  title: 'Product updated',
-                  description: `${(newProduct as Product).name} has been updated.`,
-                });
-              }
-              else if (eventType === 'DELETE') {
-                setProducts(prev => 
-                  prev.filter(product => product.id !== (oldProduct as Product).id)
-                );
-                toast({
-                  title: 'Product deleted',
-                  description: `A product has been removed from the catalog.`,
-                });
-              }
-            })
-          .subscribe((status: string) => {
-            console.log(`Realtime subscription status: ${status}`);
-          });
-        
-        realtimeChannel = channel;
-      } catch (error) {
-        console.error('Error setting up realtime subscription:', error);
-        
-        // Fall back to periodic polling
-        if (!refreshInterval) {
-          refreshInterval = setInterval(() => {
-            console.log("Performing scheduled refresh due to realtime setup failure");
-            fetchProducts();
-          }, 30000); // Refresh every 30 seconds
-        }
-      }
-    };
-
-    // Set up the initial subscription
-    setupRealtimeSubscription();
-
-    // Set up a fallback interval refresh regardless of realtime success
-    // This ensures data is periodically refreshed even if realtime is working
-    const fallbackInterval = setInterval(() => {
-      console.log("Performing periodic refresh");
-      fetchProducts();
-    }, 60000); // Every minute for guaranteed freshness
-
+    console.log("Setting up realtime subscription for products...");
+    const channel = supabase.channel('product-list-changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'products' 
+        }, 
+        (payload) => {
+          console.log('Product change received:', payload);
+          
+          const { eventType, new: newProduct, old: oldProduct } = payload;
+          
+          if (eventType === 'INSERT') {
+            setProducts(prev => [newProduct as Product, ...prev]);
+            toast({
+              title: 'New product added',
+              description: `${(newProduct as Product).name} has been added to the catalog.`,
+            });
+          } 
+          else if (eventType === 'UPDATE') {
+            setProducts(prev => 
+              prev.map(product => 
+                product.id === (newProduct as Product).id ? (newProduct as Product) : product
+              )
+            );
+            toast({
+              title: 'Product updated',
+              description: `${(newProduct as Product).name} has been updated.`,
+            });
+          }
+          else if (eventType === 'DELETE') {
+            setProducts(prev => 
+              prev.filter(product => product.id !== (oldProduct as Product).id)
+            );
+            toast({
+              title: 'Product deleted',
+              description: `A product has been removed from the catalog.`,
+            });
+          }
+        })
+      .subscribe();
+    
     // Clean up on component unmount
     return () => {
-      if (realtimeChannel) {
-        try {
-          supabase.removeChannel(realtimeChannel);
-        } catch (e) {
-          console.error('Error removing channel during cleanup:', e);
-        }
-      }
-      
-      if (refreshInterval) {
-        clearInterval(refreshInterval);
-      }
-      
-      clearInterval(fallbackInterval);
+      supabase.removeChannel(channel);
     };
-  }, [fetchProducts, isSubscribed]); // Only re-run if fetchProducts or isSubscribed changes
+  }, [isSubscribed]);
 
   const handleDeleteProduct = async (id: string, name: string) => {
     if (window.confirm(`Are you sure you want to delete ${name}?`)) {
@@ -290,7 +238,7 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
     }
   };
 
-  // Add a manual refresh function that users can trigger if realtime fails
+  // Function to handle manual refresh
   const handleManualRefresh = () => {
     fetchProducts();
     toast({
@@ -323,12 +271,12 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
       )}
       
       {!isSubscribed && !loading && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md p-4 mb-4">
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md p-2 mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <AlertTriangle className="h-5 w-5 mr-2 text-yellow-500" />
-              <span>
-                Using offline mode. Last refreshed: {lastRefreshed.toLocaleTimeString()}
+              <AlertTriangle className="h-4 w-4 mr-2 text-yellow-500" />
+              <span className="text-sm">
+                Using offline mode. Data is being refreshed automatically.
               </span>
             </div>
             <Button 
@@ -338,7 +286,7 @@ const ProductList: React.FC<ProductListProps> = ({ onEdit, refreshProducts, real
               className="ml-2"
             >
               <RefreshCcw className="h-4 w-4 mr-1" />
-              Refresh Products
+              Refresh Now
             </Button>
           </div>
         </div>

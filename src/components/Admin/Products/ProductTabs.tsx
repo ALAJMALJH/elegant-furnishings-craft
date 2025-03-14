@@ -18,13 +18,16 @@ const ProductTabs: React.FC<ProductTabsProps> = ({ onEditProduct, realtimeStatus
   const { toast } = useToast();
   const [refreshKey, setRefreshKey] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'unknown'>('unknown');
+  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   
-  // Use the custom hook for realtime subscriptions
+  // Use the custom hook for realtime subscriptions with minimal configuration
   const { status: hookRealtimeStatus } = useRealtimeSubscription(
     [{ table: 'products', event: '*' }],
     {
-      // We don't need to define callbacks here as ProductList will handle its own data updates
-      products: () => {} 
+      // Simple callback just to ensure the channel is active
+      products: () => {
+        console.log('Realtime product update received via hook');
+      }
     },
     false, // Disable toasts as we'll handle our own UI for connection status
     'product-tabs-channel' // Provide a stable channel name
@@ -46,13 +49,27 @@ const ProductTabs: React.FC<ProductTabsProps> = ({ onEditProduct, realtimeStatus
     }
   }, [parentRealtimeStatus, hookRealtimeStatus]);
 
-  const refreshProducts = () => {
+  // Set up a regular refresh interval regardless of realtime status
+  useEffect(() => {
+    // Always refresh every 60 seconds as a fallback
+    const intervalId = setInterval(() => {
+      refreshProducts(false);
+    }, 60000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const refreshProducts = (showToast = true) => {
     // Force re-render of ProductList to trigger a fresh data fetch
     setRefreshKey(prev => prev + 1);
-    toast({ 
-      title: "Refreshing Products", 
-      description: "Products list is being refreshed" 
-    });
+    setLastRefreshed(new Date());
+    
+    if (showToast) {
+      toast({ 
+        title: "Refreshing Products", 
+        description: "Products list is being refreshed" 
+      });
+    }
   };
 
   return (
@@ -67,7 +84,7 @@ const ProductTabs: React.FC<ProductTabsProps> = ({ onEditProduct, realtimeStatus
         
         <div className="flex items-center gap-2">
           {connectionStatus === 'disconnected' && (
-            <Alert variant="warning" className="py-2 px-3 flex items-center h-9 bg-yellow-50">
+            <Alert variant="warning" className="py-2 px-3 flex items-center h-9 bg-yellow-50 m-0">
               <WifiOff className="h-4 w-4 mr-2 text-yellow-600" />
               <AlertDescription className="text-xs text-yellow-600">
                 Offline mode
@@ -78,7 +95,7 @@ const ProductTabs: React.FC<ProductTabsProps> = ({ onEditProduct, realtimeStatus
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={refreshProducts}
+            onClick={() => refreshProducts(true)}
           >
             <RefreshCcw className="h-4 w-4 mr-2" />
             Refresh Products
@@ -98,6 +115,7 @@ const ProductTabs: React.FC<ProductTabsProps> = ({ onEditProduct, realtimeStatus
               onEdit={onEditProduct}
               refreshProducts={refreshProducts}
               realtimeStatus={connectionStatus === 'connected' ? 'SUBSCRIBED' : 'CLOSED'}
+              lastRefreshed={lastRefreshed}
             />
           </CardContent>
         </Card>
